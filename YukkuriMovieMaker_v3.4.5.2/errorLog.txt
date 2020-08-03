@@ -1,0 +1,44 @@
+ 【日付】2014/10/14 19:30:44
+ 【ソフト】ゆっくりMovieMaker
+ 【バージョン】3.4.8.1
+ 【.NET Framework】v4.0.30319
+ 【使用OS】Windows8 または Windows Server 2012 / 64bit / （Microsoft Windows NT 6.2.9200.0）
+ 【フリーズの有無】ゆっくりMovieMaker製エラーメッセージ
+ 【再現性の有無】　有/無
+ 【発生した問題】
+ どのような問題が発生したが、具体的にお願いします。
+
+ 【問題が起こる以前に最後にやった作業】
+ どのような作業をしている途中に不具合が起きたかを、なるべく具体的にお願いします。
+
+ 【エラーメッセージ】
+System.IO.DirectoryNotFoundException
+パス 'E:\YukkuriMovieMaker_v3.4.5.2\backup\' の一部が見つかりませんでした。
+
+ 【ターゲットサイト】
+Void WinIOError(Int32, System.String)
+
+ 【スタックトレース】
+   場所 System.IO.__Error.WinIOError(Int32 errorCode, String maybeFullPath)
+   場所 System.IO.Directory.InternalCreateDirectory(String fullPath, String path, Object dirSecurityObj, Boolean checkHost)
+   場所 System.IO.Directory.InternalCreateDirectoryHelper(String path, Boolean checkHost)
+   場所 System.IO.Directory.CreateDirectory(String path)
+   場所 YukkuriMovieMaker_v3.AppSetting.get_BackupPath() 場所 c:\Users\遣い\Documents\Visual Studio 2012\Projects\YukkuriMovieMaker_v3\YukkuriMovieMaker_v3\AppSetting.cs:行 347
+   場所 YukkuriMovieMaker_v3.MainWindow.Current_DispatcherUnhandledException(Object sender, DispatcherUnhandledExceptionEventArgs e) 場所 c:\Users\遣い\Documents\Visual Studio 2012\Projects\YukkuriMovieMaker_v3\YukkuriMovieMaker_v3\MainWindow.xaml.cs:行 184
+   場所 System.Windows.Threading.DispatcherUnhandledExceptionEventHandler.Invoke(Object sender, DispatcherUnhandledExceptionEventArgs e)
+   場所 System.Windows.Threading.Dispatcher.CatchException(Exception e)
+   場所 System.Windows.Threading.Dispatcher.CatchExceptionStatic(Object source, Exception e)
+   場所 System.Windows.Threading.ExceptionWrapper.CatchException(Object source, Exception e, Delegate catchHandler)
+   場所 MS.Internal.Threading.ExceptionFilterHelper.TryCatchWhen(Object source, Delegate method, Object args, Int32 numArgs, Delegate catchHandler)
+   場所 System.Windows.Threading.DispatcherOperation.InvokeImpl()
+   場所 System.Windows.Threading.DispatcherOperation.InvokeInSecurityContext(Object state)
+   場所 System.Threading.ExecutionContext.RunInternal(ExecutionContext executionContext, ContextCallback callback, Object state, Boolean preserveSyncCtx)
+   場所 System.Threading.ExecutionContext.Run(ExecutionContext executionContext, ContextCallback callback, Object state, Boolean preserveSyncCtx)
+   場所 System.Threading.ExecutionContext.Run(ExecutionContext executionContext, ContextCallback callback, Object state)
+   場所 System.Windows.Threading.DispatcherOperation.Invoke()
+   場所 System.Windows.Threading.Dispatcher.ProcessQueue()
+   場所 System.Windows.Threading.Dispatcher.WndProcHook(IntPtr hwnd, Int32 msg, IntPtr wParam, IntPtr lParam, Boolean& handled)
+   場所 MS.Win32.HwndWrapper.WndProc(IntPtr hwnd, Int32 msg, IntPtr wParam, IntPtr lParam, Boolean& handled)
+   場所 MS.Win32.HwndSubclass.DispatcherCallbackOperation(Object o)
+   場所 System.Windows.Threading.ExceptionWrapper.InternalRealCall(Delegate callback, Object args, Int32 numArgs)
+   場所 MS.Internal.Threading.ExceptionFilterHelper.TryCatchWhen(Object source, Delegate method, Object args, Int32 numArgs, Delegate catchHandler)

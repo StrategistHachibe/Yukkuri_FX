@@ -1,0 +1,3810 @@
+------------------------------------------------------------
+-- キャラ素材スクリプト Ver4c
+-- 更新日：2014/01/30
+------------------------------------------------------------
+
+-- このスクリプトは目パチ口パクするキャラや、立ち絵、小道具を動作させる為の、AviUtlスクリプトです。
+
+--【謝辞】
+-- キャラの伸縮登場のスクリプトは、さつき様のスクリプトからお借りしました。
+-- 立ち絵の、起き上がり登場、広がって登場、振り子のスクリプトは、AviUtl標準のスクリプトからお借りしました。
+-- getaudioを使った口パクのアイディアは、tamu様の動画(sm15823804)より拝借しました。
+-- アクセサリのアイディアは、ニック様よりご提案頂きました。
+-- 複数アニメーション、拡張アニメーション、動く全のアイディアは、きつね様よりご提案頂きました。
+-- 以上の方々、何よりAviUtlスクリプトを用意して下さった、AviUtl開発者様に、
+-- この場を借りて、感謝と敬意を表します。有難うございました。
+
+
+------------------------------------------------------------
+@色調加工１
+------------------------------------------------------------
+--track0:色相,0,360,0,1
+--track1:彩度,0,200,100,1
+--track2:明るさ,0,200,100,1
+--track3:ｺﾝﾄﾗｽﾄ,0,200,100,1
+
+Shikisou = obj.track0
+Saido = obj.track1
+Akarusa = obj.track2
+Contrast = obj.track3
+
+
+------------------------------------------------------------
+@色調加工２
+------------------------------------------------------------
+--dialog:単色化カラー/col,TC=0xaaaaff;
+--track0:単色化,0,100,0,1
+--track1:拡散光,0,100,0,1
+--track2:タイル化,0,50,0,1
+--track3:振動,0,9,0,1
+
+if obj.track2 >= 2 then obj.effect("モザイク","サイズ",obj.track2,"タイル風",1) end
+if obj.track0 >= 2 then obj.effect("単色化","強さ",obj.track0,"color",TC) end
+obj.effect("色調補正","色相",Shikisou,"彩度",Saido,"明るさ",Akarusa,"ｺﾝﾄﾗｽﾄ",Contrast)
+if obj.track1 >= 1 then obj.effect("拡散光","強さ",obj.track1,"拡散",20) end
+if obj.track3 >= 1 then obj.effect("振動","X",obj.track3,"Y",obj.track3) end
+
+
+------------------------------------------------------------
+@ベース１
+------------------------------------------------------------
+--track0:ベース眉,0,【眉の上限】,0,1
+--track1:ベース目,0,【目の上限】,0,1
+--track2:ベース口,0,【口の上限】,0,1
+--track3:ベース体,0,【体の上限】,0,1
+
+-- トラックバーの値を代入
+BaseMayu = obj.track0
+BaseMe = obj.track1
+BaseKuchi = obj.track2
+BaseKarada = obj.track3
+
+
+------------------------------------------------------------
+@ベース２
+------------------------------------------------------------
+--dialog:登場速度,IS=10;退場速度,OS=10;登場時に反転/chk,IR=0;退場時に反転/chk,OR=1;歩き振幅[pixel],AA=4;常に歩き振動/chk,TA=0;跳ね高さ[Pixel],HT=30;ジャンプ高さ[Pixel],JT=60;着地の間[秒],CM=0.3;クッション度[0-20],CD=15;
+--track0:ベース他,0,【他の上限】,0,1
+--track1:ベース後,0,【後の上限】,0,1
+--track2:登場演出,0,6,6,1
+--track3:退場演出,0,6,6,1
+
+-- トラックバーの値を代入
+BaseHoka = obj.track0
+BaseKumi = obj.track1
+ToujouEnshutsu = obj.track2
+TaijouEnshutsu = obj.track3
+
+-- ［設定］を取得
+ToujouSokudo = IS
+TaijouSokudo = OS
+ToujouRV = IR
+TaijouRV = OR
+ArukiShinpuku = AA
+TsuneniAruki = TA
+HaneTakasa = HT
+JumpTakasa = JT
+ChakuchiMa = CM
+CushionDo = CD/10
+
+
+------------------------------------------------------------
+@ベース３
+------------------------------------------------------------
+--dialog:キャラ名,CN="";左右反転/chk,RV=0;アクセサリ反転/chk,AR=0;目パチ開始[秒],MS=0.1;目パチ間隔[秒],MK=5.0;浮遊振幅[pixel],FA=2.0;浮遊周期[秒],FS=1.0;地面影を付ける/chk,DS=1;台詞なし表示/chk,SH=1;縁幅[pixel],FW=0;縁色/col,FC=0xffffff;影幅[pixel],KW=0;アンカーポイント,Pos={120,0,120,0,0,-80};
+--track0:浮遊度,-100,500,0,1
+--track1:アクセサリ,0,【アクセサリの上限】,0,1
+--track2:A色相,0,360,0
+--track3:A拡大率,0,100,100,1
+
+-- フォルダパスを定数で定義
+CHARA_SOZAI = "【キャラ素材フォルダ】"
+
+-- トラックバーの値を取得
+BaseFuyuudo = obj.track0
+AccessoryNumber = obj.track1
+AccessoryShikisou = obj.track2
+AccessoryZoom = obj.track3/100
+
+-- 各パーツのトラックバーの値を代入（拡張アニメーション使用の為）
+MayuNumber = BaseMayu
+MeNumber = BaseMe
+KuchiNumber = BaseKuchi
+KaradaNumber = BaseKarada
+HokaNumber = BaseHoka
+KumiNumber = BaseKumi
+
+-- キャラフォルダの有無によって場合分け
+CharaFolder = ""
+FilePass = CHARA_SOZAI.."キャラ\\"..CN.."\\体\\00.png"
+if os.rename(FilePass,FilePass) ~= nil then CharaFolder = "キャラ\\" end
+
+-- 全セットの配列を初期化
+ZensetSonzai = {}
+ZensetKao = {}
+ZensetMayu = {}
+ZensetMe = {}
+ZensetKuchi = {}
+ZensetKarada = {}
+ZensetHoka = {}
+ZensetKumi = {}
+ZensetKanjou = {}
+
+-- 全フォルダ内のセット.txtが有る場合の処理
+FileHandle = io.open(CHARA_SOZAI..CharaFolder..CN.."\\全\\セット.txt")
+
+if FileHandle ~= nil then
+
+	io.input(FileHandle) -- セット.txtのファイルハンドルを、デフォルト入力に
+
+	ZensetString = io.read() -- セット.txtから一行読み込む
+
+	while ZensetString ~= nil do
+
+		ZensetIndex = tonumber(string.sub(ZensetString,1,string.find(ZensetString,"=")-1))
+
+		if ZensetIndex ~= nil then
+
+			ZensetSonzai[ZensetIndex] = 1
+
+			ZensetString = string.sub(ZensetString,string.find(ZensetString,"=")+1)
+
+			while ZensetString ~= nil do
+
+				if string.find(ZensetString,"-") ~= nil then
+					PartsString = string.sub(ZensetString,1,string.find(ZensetString,"-")-1)
+					ZensetString = string.sub(ZensetString,string.find(ZensetString,"-")+1)
+				else
+					PartsString = ZensetString
+					ZensetString = nil
+				end
+
+				if string.sub(PartsString,1,2) == "顔" then
+					ZensetKao[ZensetIndex] = tonumber(string.sub(PartsString,3))
+				elseif string.sub(PartsString,1,2) == "眉" then
+					ZensetMayu[ZensetIndex] = tonumber(string.sub(PartsString,3))
+				elseif string.sub(PartsString,1,2) == "目" then
+					ZensetMe[ZensetIndex] = tonumber(string.sub(PartsString,3))
+				elseif string.sub(PartsString,1,2) == "口" then
+					ZensetKuchi[ZensetIndex] = tonumber(string.sub(PartsString,3))
+				elseif string.sub(PartsString,1,2) == "体" then
+					ZensetKarada[ZensetIndex] = tonumber(string.sub(PartsString,3))
+				elseif string.sub(PartsString,1,2) == "他" then
+					ZensetHoka[ZensetIndex] = tonumber(string.sub(PartsString,3))
+				elseif string.sub(PartsString,1,2) == "後" then
+					ZensetKumi[ZensetIndex] = tonumber(string.sub(PartsString,3))
+				else
+					ZensetKanjou[ZensetIndex] = PartsString
+				end
+
+				if ZensetKanjou[ZensetIndex] ~= nil then
+					ZensetKao[ZensetKanjou[ZensetIndex]] = ZensetKao[ZensetIndex]
+					ZensetMayu[ZensetKanjou[ZensetIndex]] = ZensetMayu[ZensetIndex]
+					ZensetMe[ZensetKanjou[ZensetIndex]] = ZensetMe[ZensetIndex]
+					ZensetKuchi[ZensetKanjou[ZensetIndex]] = ZensetKuchi[ZensetIndex]
+					ZensetKarada[ZensetKanjou[ZensetIndex]] = ZensetKarada[ZensetIndex]
+					ZensetHoka[ZensetKanjou[ZensetIndex]] = ZensetHoka[ZensetIndex]
+					ZensetKumi[ZensetKanjou[ZensetIndex]] = ZensetKumi[ZensetIndex]
+				end
+
+			end
+
+		end
+
+		ZensetString = io.read() -- セット.txtから一行読み込む
+	end
+
+end
+
+-- 目パーツが眉や口位置の補正情報を持っている場合
+HoseiString = ""
+MayuIchiPos = 0
+KuchiIchiPos = 0
+FilePass = CHARA_SOZAI..CharaFolder..CN.."\\目\\"..string.format("%02d",MeNumber)..".png"
+if os.rename(FilePass,FilePass) == nil then
+	FilePass = CHARA_SOZAI..CharaFolder..CN.."\\目\\"..string.format("%02d",MeNumber).."-15.png"
+	if os.rename(FilePass,FilePass) ~= nil then
+		HoseiString = "-15"
+		KuchiIchiPos = -15
+	else
+		for Count = 12 , -12 , -1 do
+			PlusMinus = "+"
+			if Count < 0 then PlusMinus = "-" end
+			if Count ~= 0 then
+				FilePass = CHARA_SOZAI..CharaFolder..CN.."\\目\\"..string.format("%02d",MeNumber)..PlusMinus..Count.."m.png"
+				if os.rename(FilePass,FilePass) ~= nil then
+					HoseiString = PlusMinus..Count.."m"
+					MayuIchiPos = Count
+					break
+				end
+			end
+		end
+	end
+end
+
+-- 元からあるテキストの非表示
+obj.alpha = 0
+
+-- 登場/退場のアンカーポイントを設置
+obj.setanchor("Pos",2,"star","inout")
+
+ToujouX = 3 * Pos[1] * obj.getvalue("zoom")/100
+ToujouY = 3 * Pos[2] * obj.getvalue("zoom")/100
+ToujouLength = math.sqrt(ToujouX^2 + ToujouY^2)
+
+TaijouX = 3 * Pos[3] * obj.getvalue("zoom")/100
+TaijouY = 3 * Pos[4] * obj.getvalue("zoom")/100
+TaijouLength = math.sqrt(TaijouX^2 + TaijouY^2)
+
+-- アクセサリのアンカーポイントを設置
+if AccessoryNumber > 0 then
+	obj.setanchor("Pos",3) -- ３つ目のアンカーポイントを追加
+	AccessoryX = math.ceil(Pos[5])
+	AccessoryY = math.ceil(Pos[6])
+end
+
+-- 表情に渡す為のベースの情報を、体パーツから取得
+obj.load(CHARA_SOZAI..CharaFolder..CN.."\\体\\00.png")
+
+BaseX = obj.x
+BaseY = obj.y
+BaseZ = obj.z
+BaseRX = obj.rx
+BaseRY = obj.ry
+BaseRZ = obj.rz
+BaseAlpha = obj.getvalue("alpha")
+BaseZoom = obj.getvalue("zoom")/100
+BaseW = math.ceil(obj.w/BaseZoom)
+BaseH = math.ceil(obj.h/BaseZoom)
+BaseFA = FA
+BaseFS = FS
+BaseRV = RV
+BaseAR = AR
+BaseDS = DS
+BaseSH = SH
+BaseFW = FW
+BaseFC = FC
+BaseKW = KW / math.cos(math.pi/4)
+BaseTime = obj.time
+BaseMS = MS
+BaseMK = MK
+BaseFuyuuStart = FS * MS/MK -- 浮遊の開始タイミング
+
+obj.alpha = 0 -- 情報取得用の体パーツは非表示
+
+obj.draw()
+
+-- 関数：キャラに登場演出と退場演出の適用
+function CharaToutaijou(ShadowFlag)
+
+	-- 登場演出の割合[0→1]
+	InRate = 1
+	if ToujouEnshutsu == 1 then -- フェード
+		ToujouSokudo = 10*IS
+		InRate = BaseTime / (100/ToujouSokudo)
+	end
+	if ToujouEnshutsu == 2 and JumpTakasa > 0 then -- ジャンプ
+		ToujouSokudo = 30*IS
+		InRate = BaseTime / (2*JumpTakasa/ToujouSokudo)
+	end
+	if ToujouEnshutsu == 3 and JumpTakasa > 0 then -- 伸縮ジャンプ
+		ToujouSokudo = 30*IS
+		InRate = BaseTime / (2*JumpTakasa/ToujouSokudo)
+	end
+	if ToujouEnshutsu == 4 then -- 変身
+		ToujouSokudo = 25*IS
+		InRate = BaseTime / (100/ToujouSokudo)
+	end
+	if ToujouEnshutsu == 5 and ToujouLength > 0 then -- 歩いて移動
+		ToujouSokudo = 15*IS
+		InRate = BaseTime / (ToujouLength/ToujouSokudo)
+	end
+	if ToujouEnshutsu == 6 and ToujouLength > 0 then -- 跳ねて移動
+		ToujouSokudo = 20*IS
+		HaneTime = 2*HaneTakasa / ToujouSokudo
+		HaneKaisuu = math.floor(ToujouLength/(2*HaneTakasa))
+		TotalTime = ToujouLength/ToujouSokudo + HaneKaisuu*ChakuchiMa
+		InRate = BaseTime / TotalTime
+	end
+
+	-- 退場演出の割合[1→0]
+	OutRate = 1
+	if TaijouEnshutsu == 1 then -- フェード
+		TaijouSokudo = 10*OS
+		OutRate = (obj.totaltime-BaseTime) / (100/TaijouSokudo)
+	end
+	if TaijouEnshutsu == 2 and JumpTakasa > 0 then -- ジャンプ
+		TaijouSokudo = 30*OS
+		OutRate = (obj.totaltime-BaseTime) / (2*JumpTakasa/TaijouSokudo)
+	end
+	if TaijouEnshutsu == 3 and JumpTakasa > 0 then -- 伸縮ジャンプ
+		TaijouSokudo = 30*OS
+		OutRate = (obj.totaltime-BaseTime) / (2*JumpTakasa/TaijouSokudo)
+	end
+	if TaijouEnshutsu == 4 then -- 変身
+		TaijouSokudo = 25*OS
+		OutRate = (obj.totaltime-BaseTime) / (100/TaijouSokudo)
+	end
+	if TaijouEnshutsu == 5 and TaijouLength > 0 then -- 歩いて移動
+		TaijouSokudo = 15*OS
+		OutRate = (obj.totaltime-BaseTime) / (TaijouLength/TaijouSokudo)
+	end
+	if TaijouEnshutsu == 6 and TaijouLength > 0 then -- 跳ねて移動
+		TaijouSokudo = 20*OS
+		HaneTime = 2*HaneTakasa / 150
+		HaneKaisuu = math.floor(TaijouLength/(2*HaneTakasa))
+		TotalTime = TaijouLength/TaijouSokudo + HaneKaisuu*ChakuchiMa
+		OutRate = (obj.totaltime-BaseTime) / TotalTime
+	end
+
+	-- 登場・退場の共通変数に代入
+	Enshutsu = 0
+	EnshutsuRV = 0
+	Rate = 1
+	if InRate < 1 then
+		Enshutsu = ToujouEnshutsu
+		Sokudo = ToujouSokudo
+		EnshutsuTime = BaseTime
+		Rate = InRate
+		AnchorX = ToujouX
+		AnchorY = ToujouY
+		AnchorLength = ToujouLength
+		if ToujouEnshutsu ~= 1 and ToujouEnshutsu ~= 4 then EnshutsuRV = ToujouRV end
+	elseif OutRate < 1 then
+		Enshutsu = TaijouEnshutsu
+		Sokudo = TaijouSokudo
+		EnshutsuTime = obj.totaltime - BaseTime
+		Rate = OutRate
+		AnchorX = TaijouX
+		AnchorY = TaijouY
+		AnchorLength = TaijouLength
+		if TaijouEnshutsu ~= 1 and TaijouEnshutsu ~= 4 then EnshutsuRV = TaijouRV end
+	end
+
+	if Rate >= 0 and Rate < 1 then
+
+		if Enshutsu == 1 then -- フェード
+
+			obj.alpha = Rate
+
+		elseif Enshutsu == 2 then -- ジャンプ
+		
+			obj.ox = AnchorX * (1 - Rate*(1-0.2*math.sin(2*math.pi*Rate)))
+			obj.oy = AnchorY * (1 - Rate)
+			BaseFuyuudo = BaseFuyuudo + JumpTakasa * math.sin(math.pi*Rate*(1-0.2*math.sin(2*math.pi*Rate)))
+
+		elseif Enshutsu == 3 then -- 伸縮ジャンプ
+
+			obj.ox = AnchorX * (1 - Rate*(1-0.2*math.sin(2*math.pi*Rate)))
+			obj.oy = AnchorY * (1 - Rate)
+			BaseFuyuudo = BaseFuyuudo + JumpTakasa * math.sin(math.pi*Rate*(1-0.2*math.sin(2*math.pi*Rate)))
+			obj.alpha = Rate*(1+0.3*math.sin(math.pi*Rate))
+
+			-- ▽ さつきさんの伸縮登場スクリプトを拝借 ▽
+			xa = 40
+			xb = 150
+			ya = 150
+			yb = 80
+			xscale = 100
+			yscale = 100
+
+			if ToujouEnshutsu == 3 and InRate < 1 then
+
+				t = (2*JumpTakasa/ToujouSokudo)/3
+
+				if(BaseTime<t) then
+					ta=(t-BaseTime)/t
+					xscale=0+(xa-0)*(1-ta)
+					yscale=0+(ya-0)*(1-ta)
+			  	elseif(BaseTime<2*t) then
+					tb=(t-(BaseTime-t))/t
+					xscale=xa+(xb-xa)*(1-tb)
+					yscale=ya+(yb-ya)*(1-tb)
+			  	elseif(BaseTime<3*t) then
+					tc=(t-(BaseTime-2*t))/t
+					xscale=xb+(100-xb)*(1-tc)
+					yscale=yb+(100-yb)*(1-tc)
+				end
+
+			elseif TaijouEnshutsu == 3 and OutRate < 1 then
+
+				t = (2*JumpTakasa/TaijouSokudo)/3
+
+				if (BaseTime>obj.totaltime-3*t) then
+					if(BaseTime<obj.totaltime-2*t) then
+						tc=(t-(BaseTime-obj.totaltime+3*t))/t
+						xscale=100+(xb-100)*(1-tc)
+						yscale=100+(yb-100)*(1-tc)
+					elseif(BaseTime<obj.totaltime-t) then
+						tb=(t-(BaseTime-obj.totaltime+2*t))/t
+						xscale=xb+(xa-xb)*(1-tb)
+						yscale=yb+(ya-yb)*(1-tb)
+					else
+						ta=(t-(BaseTime-obj.totaltime+t))/t
+						xscale=xa+(0-xa)*(1-ta)
+						yscale=ya+(0-ya)*(1-ta)
+					end
+				end
+
+			end
+
+			obj.zoom=math.max(xscale,yscale)/100
+			if(xscale>yscale) then
+				obj.aspect=yscale/xscale-1
+			else
+				obj.aspect=1-xscale/yscale
+			end
+			-- △ さつきさんの伸縮登場スクリプトを拝借 △
+
+		elseif Enshutsu == 4 then -- 変身
+
+			BaseFuyuudo = BaseFuyuudo + 50 * math.sin(math.pi*Rate*(1-0.2*math.sin(2*math.pi*Rate)))
+			obj.zoom = 0.5 + 0.5*Rate*(1+0.5*math.sin(math.pi*Rate))
+			obj.alpha = Rate
+
+			if ShadowFlag == 0 then
+				obj.effect("放射ブラー","範囲",100 * (1 - Rate*(1+0.2*math.sin(math.pi*Rate))))
+				obj.effect("色調補正","明るさ",100 + 150 * (1 - Rate*(1+0.3*math.sin(math.pi*Rate))))
+			end
+
+		elseif Enshutsu == 5 then -- 歩いて移動
+
+			obj.ox = AnchorX * (1 - Rate)
+			obj.oy = AnchorY * (1 - Rate)
+			obj.zoom = obj.zoom + AnchorY * (1 - Rate) / 400
+
+			-- 歩き振動を反映
+			if EnshutsuTime < AnchorLength/Sokudo + (AnchorLength/Sokudo)%0.2 then
+				BaseFuyuudo = BaseFuyuudo + ArukiShinpuku*math.abs(math.sin(2*math.pi*EnshutsuTime/0.4))
+			end
+
+		elseif Enshutsu == 6 then -- 跳ねて移動
+
+			HaneTime = 2*HaneTakasa / Sokudo
+			HaneKaisuu = math.floor(AnchorLength/(2*HaneTakasa))
+			TotalTime = AnchorLength/Sokudo + HaneKaisuu*ChakuchiMa
+			AmariTime = TotalTime % (HaneTime+ChakuchiMa)
+
+			if EnshutsuTime >= AmariTime then
+
+				if (EnshutsuTime-AmariTime) % (HaneTime+ChakuchiMa) <= HaneTime then -- 跳ね
+
+					HaneCount = math.floor((EnshutsuTime-AmariTime)/(HaneTime+ChakuchiMa))
+					obj.ox = AnchorX * (1 - (EnshutsuTime - ChakuchiMa*HaneCount)/(AnchorLength/Sokudo))
+					obj.oy = AnchorY * (1 - (EnshutsuTime - ChakuchiMa*HaneCount)/(AnchorLength/Sokudo))
+					HaneRate = ((EnshutsuTime-AmariTime) % (HaneTime+ChakuchiMa)) / HaneTime
+					BaseFuyuudo = BaseFuyuudo + HaneTakasa * math.sin(math.pi*HaneRate)
+
+				else -- 着地
+
+					HaneCount = math.floor((EnshutsuTime-AmariTime)/(HaneTime+ChakuchiMa)) + 1
+					obj.ox = AnchorX * (1 - (2*HaneTakasa*HaneCount + AmariTime*Sokudo)/AnchorLength)
+					obj.oy = AnchorY * (1 - (2*HaneTakasa*HaneCount + AmariTime*Sokudo)/AnchorLength)
+
+					if CushionDo > 0 then
+						ChakuchiRate = ((EnshutsuTime-AmariTime) % (HaneTime+ChakuchiMa) - HaneTime) / ChakuchiMa
+						obj.aspect = -0.1*CushionDo*math.sin(math.pi*ChakuchiRate)
+						obj.zoom = 1 + 0.1*CushionDo*math.sin(math.pi*ChakuchiRate)
+						BaseFuyuudo = BaseFuyuudo - obj.h/6 * obj.aspect^2 * obj.zoom
+					end
+
+				end
+
+			else
+
+				obj.ox = AnchorX * (1 - Rate)
+				obj.oy = AnchorY * (1 - Rate)
+				BaseFuyuudo = BaseFuyuudo + ArukiShinpuku*math.abs(math.sin(2*math.pi*EnshutsuTime/0.6)) -- 歩き振動
+
+			end
+
+		end
+
+	end
+
+	-- 常に歩き振動を適用
+	if Enshutsu ~= 5 and TsuneniAruki == 1 then
+		BaseFuyuudo = BaseFuyuudo + ArukiShinpuku*math.abs(math.sin(2*math.pi*BaseTime/0.6))
+	end
+
+end
+
+-- 標準の目パチ（目の定期往復型）-abcdefghij
+MeString = ""
+if 【目パチ時間】 > 0 and BaseMK > 0 then
+
+	-- 分割数を決定
+	BunkatsuSuu = 0
+	while BunkatsuSuu < 10 do
+		FilePass = CHARA_SOZAI..CharaFolder..CN.."\\目\\00"..string.char(BunkatsuSuu+97)..".png"
+		if os.rename(FilePass,FilePass) == nil then break end
+		BunkatsuSuu = BunkatsuSuu + 1
+	end
+
+	if BunkatsuSuu > 0 then
+
+		-- 分割時間を設定
+		BunkatsuTime = 【目パチ時間】/(2*BunkatsuSuu+2)
+
+		-- 余り時間を設定
+		KaishiTime = BaseMS % BaseMK
+		AmariTime = BaseTime % BaseMK - KaishiTime
+
+		-- 余り時間から、目画像を決定
+		Count = 1
+		while (Count-1)*BunkatsuTime <= AmariTime and Count <= (2*BunkatsuSuu+2) + 1 do
+			if Count <= BunkatsuSuu then
+				MeString = string.char(Count+96)
+			elseif Count <= BunkatsuSuu + 2 then
+				MeString = string.char(BunkatsuSuu+96)
+			elseif Count <= 2*BunkatsuSuu + 2 then
+				MeString = string.char((2*BunkatsuSuu+2)-Count+97)
+			else
+				MeString = ""
+			end
+			Count = Count + 1
+		end
+
+	end
+
+end
+
+-- 台詞なし表示がONでかつ、レイヤーの下に表情オブジェクトが存在しない時だけ描画
+if BaseSH == 1 and obj.getvalue("layer"..(obj.layer + 1)..".x") == nil then
+
+	-- 外部関数：拡張アニメーションを読み込み、実行
+	ObjTime = BaseTime
+	CharaObjectFlag = 1
+	require("拡張アニメーション")
+	ExAnimation()
+
+	ShadowY = BaseH/2 -- キャラより下にアクセサリが有る場合の地面影記入位置
+
+	-- 目パチ型アニメーションの目パーツかどうかを判定
+	FilePass = CHARA_SOZAI..CharaFolder..CN.."\\目\\"..string.format("%02d",MeNumber)..MeString..HoseiString..".png"
+	if os.rename(FilePass,FilePass) == nil then MeString = "" end
+
+	-- パーツ画像統合の為、描画先を仮想バッファへ
+	obj.setoption("drawtarget","tempbuffer",1000,1000)
+
+	-- アクセサリの描画（後配置）
+	if AccessoryNumber > 0 then
+		obj.load(CHARA_SOZAI.."小道具\\アクセサリ\\"..string.format("%02d",AccessoryNumber).."u.png")
+
+		-- 地面影の位置（アクセサリ込みキャラの最下点）を計算
+		if AccessoryY + AccessoryZoom*obj.h/2 > BaseH/2 then ShadowY = math.ceil(AccessoryY + AccessoryZoom*obj.h/2) end
+
+		obj.effect("色調補正","色相",AccessoryShikisou)
+		if BaseAR == 1 then obj.effect("反転","左右反転",1) end
+		obj.draw(AccessoryX+(math.ceil(obj.w/BaseZoom)%2)/2,AccessoryY+(math.ceil(obj.h/BaseZoom)%2)/2-100,0,AccessoryZoom)
+	end
+
+	-- 後の描画（後配置）
+	obj.load(CHARA_SOZAI..CharaFolder..CN.."\\後\\"..string.format("%02d",KumiNumber)..AryUshiroKumiString[0]..".png")
+	obj.draw((math.ceil(obj.w/BaseZoom)%2)/2,(math.ceil(obj.h/BaseZoom)%2)/2-100)
+	for Count = 1 , 9 do
+		FilePass = CHARA_SOZAI..CharaFolder..CN.."\\後\\"..string.format("%02d",KumiNumber).."u"..Count..AryUshiroKumiString[Count]..".png"
+		if os.rename(FilePass,FilePass) == nil then break end
+		obj.load(CHARA_SOZAI..CharaFolder..CN.."\\後\\"..string.format("%02d",KumiNumber).."u"..Count..AryUshiroKumiString[Count]..".png")
+		obj.draw((math.ceil(obj.w/BaseZoom)%2)/2,(math.ceil(obj.h/BaseZoom)%2)/2-100)
+	end
+
+	-- 体の描画
+	obj.load(CHARA_SOZAI..CharaFolder..CN.."\\体\\"..string.format("%02d",KaradaNumber)..KaradaString..".png")
+	obj.draw((math.ceil(obj.w/BaseZoom)%2)/2,(math.ceil(obj.h/BaseZoom)%2)/2-100)
+
+	-- 顔の描画（赤面の場合）
+	FilePass = CHARA_SOZAI..CharaFolder..CN.."\\顔\\00a.png"
+	if os.rename(FilePass,FilePass) ~= nil then
+		obj.load(CHARA_SOZAI..CharaFolder..CN.."\\顔\\00a.png")
+		obj.draw((math.ceil(obj.w/BaseZoom)%2)/2,(math.ceil(obj.h/BaseZoom)%2)/2-100)
+	else
+		FilePass = CHARA_SOZAI..CharaFolder..CN.."\\顔\\00.png"
+		if os.rename(FilePass,FilePass) ~= nil then
+			obj.load(CHARA_SOZAI..CharaFolder..CN.."\\顔\\00.png")
+			obj.draw((math.ceil(obj.w/BaseZoom)%2)/2,(math.ceil(obj.h/BaseZoom)%2)/2-100)
+		end
+	end
+
+	-- 髪を描画（不透明）
+	FilePass = CHARA_SOZAI..CharaFolder..CN.."\\髪\\"..string.format("%02d",KaradaNumber).."a.png"
+	if os.rename(FilePass,FilePass) ~= nil then
+		obj.load(CHARA_SOZAI..CharaFolder..CN.."\\髪\\"..string.format("%02d",KaradaNumber).."a.png")
+		obj.draw((math.ceil(obj.w/BaseZoom)%2)/2,(math.ceil(obj.h/BaseZoom)%2)/2-100)
+	else
+		obj.load(CHARA_SOZAI..CharaFolder..CN.."\\髪\\00.png")
+		obj.draw((math.ceil(obj.w/BaseZoom)%2)/2,(math.ceil(obj.h/BaseZoom)%2)/2-100)
+	end
+
+	FilePass = CHARA_SOZAI..CharaFolder..CN.."\\目\\"..string.format("%02d",MeNumber).."x"..HoseiString..".png"
+	if os.rename(FilePass,FilePass) ~= nil then -- 目眉口セットパーツの場合
+
+		-- 目を描画
+		obj.load(CHARA_SOZAI..CharaFolder..CN.."\\目\\"..string.format("%02d",MeNumber).."x"..HoseiString..".png")
+		obj.draw((math.ceil(obj.w/BaseZoom)%2)/2,(math.ceil(obj.h/BaseZoom)%2)/2-100)
+
+	else -- 目眉口セットパーツでない場合
+
+		FilePass = CHARA_SOZAI..CharaFolder..CN.."\\目\\"..string.format("%02d",MeNumber).."y"..HoseiString..".png"
+		if os.rename(FilePass,FilePass) ~= nil then -- 目口セットパーツの場合
+
+			-- 眉を描画
+			obj.load(CHARA_SOZAI..CharaFolder..CN.."\\眉\\"..string.format("%02d",MayuNumber)..".png")
+			obj.draw((math.ceil(obj.w/BaseZoom)%2)/2,(math.ceil(obj.h/BaseZoom)%2)/2-100 + MayuIchiPos)
+
+			-- 目を描画
+			obj.load(CHARA_SOZAI..CharaFolder..CN.."\\目\\"..string.format("%02d",MeNumber).."y"..HoseiString..".png")
+			obj.draw((math.ceil(obj.w/BaseZoom)%2)/2,(math.ceil(obj.h/BaseZoom)%2)/2-100)
+
+		else -- 目口セットパーツでない場合
+
+			FilePass = CHARA_SOZAI..CharaFolder..CN.."\\目\\"..string.format("%02d",MeNumber).."z"..HoseiString..".png"
+			if os.rename(FilePass,FilePass) ~= nil then -- 目眉セットパーツの場合
+
+				-- 目を描画
+				obj.load(CHARA_SOZAI..CharaFolder..CN.."\\目\\"..string.format("%02d",MeNumber).."z"..HoseiString..".png")
+				obj.draw((math.ceil(obj.w/BaseZoom)%2)/2,(math.ceil(obj.h/BaseZoom)%2)/2-100)
+
+				-- 口の描画
+				obj.load(CHARA_SOZAI..CharaFolder..CN.."\\口\\"..string.format("%02d",KuchiNumber)..".png")
+				obj.draw((math.ceil(obj.w/BaseZoom)%2)/2,(math.ceil(obj.h/BaseZoom)%2)/2-100 + KuchiIchiPos)
+
+			else -- 目眉セットパーツでない場合
+
+				-- 眉を描画
+				obj.load(CHARA_SOZAI..CharaFolder..CN.."\\眉\\"..string.format("%02d",MayuNumber)..".png")
+				obj.draw((math.ceil(obj.w/BaseZoom)%2)/2,(math.ceil(obj.h/BaseZoom)%2)/2-100 + MayuIchiPos)
+
+				-- 目を描画
+				obj.load(CHARA_SOZAI..CharaFolder..CN.."\\目\\"..string.format("%02d",MeNumber)..MeString..HoseiString..".png")
+				obj.draw((math.ceil(obj.w/BaseZoom)%2)/2,(math.ceil(obj.h/BaseZoom)%2)/2-100)
+
+				-- 口の描画
+				obj.load(CHARA_SOZAI..CharaFolder..CN.."\\口\\"..string.format("%02d",KuchiNumber)..".png")
+				obj.draw((math.ceil(obj.w/BaseZoom)%2)/2,(math.ceil(obj.h/BaseZoom)%2)/2-100 + KuchiIchiPos)
+
+			end
+
+		end
+
+	end
+
+	-- 髪を描画（半透明）
+	FilePass = CHARA_SOZAI..CharaFolder..CN.."\\髪\\"..string.format("%02d",KaradaNumber).."b.png"
+	if os.rename(FilePass,FilePass) ~= nil then
+		obj.load(CHARA_SOZAI..CharaFolder..CN.."\\髪\\"..string.format("%02d",KaradaNumber).."b.png")
+		obj.draw((math.ceil(obj.w/BaseZoom)%2)/2,(math.ceil(obj.h/BaseZoom)%2)/2-100)
+	else
+		FilePass = CHARA_SOZAI..CharaFolder..CN.."\\髪\\"..string.format("%02d",KaradaNumber).."a.png"
+		if os.rename(FilePass,FilePass) ~= nil then
+			obj.load(CHARA_SOZAI..CharaFolder..CN.."\\髪\\"..string.format("%02d",KaradaNumber).."a.png")
+			obj.draw((math.ceil(obj.w/BaseZoom)%2)/2,(math.ceil(obj.h/BaseZoom)%2)/2-100,0,1,0.5)
+		else
+			FilePass = CHARA_SOZAI..CharaFolder..CN.."\\髪\\01.png"
+			if os.rename(FilePass,FilePass) ~= nil then
+				obj.load(CHARA_SOZAI..CharaFolder..CN.."\\髪\\01.png")
+				obj.draw((math.ceil(obj.w/BaseZoom)%2)/2,(math.ceil(obj.h/BaseZoom)%2)/2-100)
+			else
+				obj.load(CHARA_SOZAI..CharaFolder..CN.."\\髪\\00.png")
+				obj.draw((math.ceil(obj.w/BaseZoom)%2)/2,(math.ceil(obj.h/BaseZoom)%2)/2-100,0,1,0.5)
+			end
+		end
+	end
+
+	-- 他の描画
+	obj.load(CHARA_SOZAI..CharaFolder..CN.."\\他\\"..string.format("%02d",HokaNumber)..HokaString..".png")
+	obj.draw((math.ceil(obj.w/BaseZoom)%2)/2,(math.ceil(obj.h/BaseZoom)%2)/2-100)
+
+	-- 後の描画（前配置）
+	for Count = 1 , 9 do
+		FilePass = CHARA_SOZAI..CharaFolder..CN.."\\後\\"..string.format("%02d",KumiNumber).."m"..Count..AryMaeKumiString[Count]..".png"
+		if os.rename(FilePass,FilePass) == nil then break end
+		obj.load(CHARA_SOZAI..CharaFolder..CN.."\\後\\"..string.format("%02d",KumiNumber).."m"..Count..AryMaeKumiString[Count]..".png")
+		obj.draw((math.ceil(obj.w/BaseZoom)%2)/2,(math.ceil(obj.h/BaseZoom)%2)/2-100)
+	end
+
+	-- アクセサリの描画（前配置）
+	if AccessoryNumber > 0 then
+		obj.load(CHARA_SOZAI.."小道具\\アクセサリ\\"..string.format("%02d",AccessoryNumber)..".png")
+
+		-- 地面影の位置（アクセサリ込みキャラの最下点）を計算
+		if AccessoryY + AccessoryZoom*obj.h/2 > BaseH/2 then ShadowY = math.ceil(AccessoryY + AccessoryZoom*obj.h/2) end
+
+		obj.effect("色調補正","色相",AccessoryShikisou)
+		if BaseAR == 1 then obj.effect("反転","左右反転",1) end
+		obj.draw(AccessoryX+(math.ceil(obj.w/BaseZoom)%2)/2,AccessoryY+(math.ceil(obj.h/BaseZoom)%2)/2-100,0,AccessoryZoom)
+	end
+
+	-- 地面影を仮想バッファに描画
+	if BaseDS == 1 then
+		obj.load("tempbuffer",100,0,800,800)
+		CharaToutaijou(1) -- 影に登場演出と退場演出を適用
+		if math.abs(BaseRV-EnshutsuRV) == 1 then obj.effect("反転","左右反転",1) end
+		obj.drawpoly(-300,300,0, 500,300,0, 300,500,0, -500,500,0,  0,0, 800,0, 800,800, 0,800) -- 傾斜変換して描画
+	end
+
+	-- 描画先をフレームバッファに
+	obj.setoption("drawtarget","framebuffer")
+
+	-- 地面影の描画
+	if BaseDS == 1 then
+
+		obj.load("tempbuffer",0,800,1000,200)
+
+		CharaToutaijou(1) -- 影に登場演出と退場演出を適用
+
+		-- 浮遊度から、地面影のぼかし、ズーム、透明度を設定
+		ShadowBokashi = 5
+		ShadowZoom = 1
+		ShadowAlpha = 0.4
+		if BaseFuyuudo > 9 then
+			ShadowBokashi = ShadowBokashi + 0.18*(BaseFuyuudo + BaseFA * math.sin(2*math.pi * (BaseTime+BaseFuyuuStart)/BaseFS))
+			ShadowZoom = ShadowZoom - 0.0015*(BaseFuyuudo + BaseFA * math.sin(2*math.pi * (BaseTime+BaseFuyuuStart)/BaseFS))
+			ShadowAlpha = ShadowAlpha - 0.0015*(BaseFuyuudo + BaseFA * math.sin(2*math.pi * (BaseTime+BaseFuyuuStart)/BaseFS))
+		else
+			ShadowBokashi = ShadowBokashi + 0.18*BaseFuyuudo
+			ShadowZoom = ShadowZoom - 0.0015*BaseFuyuudo
+			ShadowAlpha = ShadowAlpha - 0.0015*BaseFuyuudo
+		end
+
+		-- 地面影に変換
+		obj.effect("グラデーション","color",0x000000,"color2",0x000000) 
+		obj.effect("ぼかし","範囲",ShadowBokashi)
+		obj.ox = obj.ox + BaseZoom*ShadowY/4 + 0.35*BaseZoom*BaseFuyuudo
+		obj.oy = obj.oy + BaseZoom*ShadowY*3/4 - 0.35*BaseZoom*BaseFuyuudo
+		obj.alpha = obj.alpha * ShadowAlpha
+		obj.zoom = obj.zoom * ShadowZoom
+
+		-- 地面影を描画
+		obj.draw()
+
+	end
+
+	-- キャラ本体の描画
+	obj.load("tempbuffer",100,0,800,800)
+
+	CharaToutaijou(0) -- キャラに登場演出と退場演出を適用
+
+	if math.abs(BaseRV-EnshutsuRV) == 1 then obj.effect("反転","左右反転",1) end
+	if BaseFW > 0 then obj.effect("縁取り","サイズ",BaseFW,"ぼかし",15,"color",BaseFC) end
+	if BaseKW > 0 then obj.effect("シャドー","X",BaseKW*math.cos(-math.rad(obj.rz)+math.pi/4),"Y",BaseKW*math.sin(-math.rad(obj.rz)+math.pi/4),"拡散",1,"濃さ",70,"color",0x000000) end
+	obj.oy = obj.oy - BaseFuyuudo
+	if BaseFuyuudo > 9 then obj.oy = obj.oy - BaseFA * math.sin(2*math.pi*(BaseTime+BaseFuyuuStart)/BaseFS) end
+
+	obj.effect() -- ユーザーが追加したフィルタ効果を適用
+	obj.draw()
+
+end
+
+
+------------------------------------------------------------
+@表情１
+------------------------------------------------------------
+--track0:顔,-1,【顔の上限】,-1,1
+--track1:眉,-1,【眉の上限】,-1,1
+--track2:目,-1,【目の上限】,-1,1
+--track3:口,-1,【口の上限】,-1,1
+
+-- 表情３に渡す為、トラックバーの値を代入
+KaoNumber = obj.track0
+MayuNumber = obj.track1
+MeNumber = obj.track2
+KuchiNumber = obj.track3
+
+
+------------------------------------------------------------
+@表情２
+------------------------------------------------------------
+--file:
+--track0:体,-1,【体の上限】,-1,1
+--track1:他,-1,【他の上限】,-1,1
+--track2:後,-1,【後の上限】,-1,1
+--track3:全,0,【全の上限】,0,1
+
+-- 表情３に渡す為、トラックバーの値を代入
+KaradaNumber = obj.track0
+HokaNumber = obj.track1
+KumiNumber = obj.track2
+ZenNumber = obj.track3
+
+
+------------------------------------------------------------
+@表情３
+------------------------------------------------------------
+--dialog:震える[Pixel],FH=0;左右反転/chk,RV=0;マーク反転/chk,MR=0;マーク色相[0-360],MS=0;マーク縁[pixel],FW=0;マークの影[pixel],KW=0;マークエッジ[pixel],EW=0;マーク速度,MV=10;マーク揺れ角度,FK=15;跳ね速度,HS=10;着地の間[秒],CM=0.2;感情,KJ="";クッション度[0-20],CD=15;アンカーポイント,Pos={-100,-100,-50,-50};
+--track0:跳ねる,0,100,0,1
+--track1:マーク,0,【マークの上限】,0,1
+--track2:M拡大率,0,100,50,1
+--track3:M演出,0,6,2,1
+
+-- フォルダパスを定義
+CHARA_SOZAI = "【キャラ素材フォルダ】"
+
+-- トラックバーの値を取得
+HaneHaba = obj.track0
+MarkNumber = obj.track1
+MarkZoom = obj.track2/100
+MarkEnshutsu = obj.track3
+
+-- ［設定］を取得
+Furueru = FH
+HyoujouRV = RV
+MarkRV = MR
+MarkShikisou = MS
+MarkFuchi = FW
+MarkKage = KW
+MarkEdge = EW
+MarkYure = FK
+HaneSokudo = HS * 30
+ChakuchiMa = CM
+CushionDo = CD/10
+Kanjou = KJ
+
+-- 表情の各パーツのトラックバーが-1の時の処理
+if KaoNumber == -1 then
+	if ZensetKao[Kanjou] ~= nil and ZenNumber == 0 then
+		KaoNumber = ZensetKao[Kanjou]
+	elseif ZensetKao[ZenNumber] ~= nil then
+		KaoNumber = ZensetKao[ZenNumber]
+	else
+		KaoNumber = 0
+	end
+end
+if MayuNumber == -1 then
+	if ZensetMayu[Kanjou] ~= nil and ZenNumber == 0 then
+		MayuNumber = ZensetMayu[Kanjou]
+	elseif ZensetMayu[ZenNumber] ~= nil then
+		MayuNumber = ZensetMayu[ZenNumber]
+	else
+		MayuNumber = BaseMayu
+	end
+end
+if MeNumber == -1 then
+	if ZensetMe[Kanjou] ~= nil and ZenNumber == 0 then
+		MeNumber = ZensetMe[Kanjou]
+	elseif ZensetMe[ZenNumber] ~= nil then
+		MeNumber = ZensetMe[ZenNumber]
+	else
+		MeNumber = BaseMe
+	end
+end
+if KuchiNumber == -1 then
+	if ZensetKuchi[Kanjou] ~= nil and ZenNumber == 0 then
+		KuchiNumber = ZensetKuchi[Kanjou]
+	elseif ZensetKuchi[ZenNumber] ~= nil then
+		KuchiNumber = ZensetKuchi[ZenNumber]
+	else
+		KuchiNumber = BaseKuchi
+	end
+end
+if KaradaNumber == -1 then
+	if ZensetKarada[Kanjou] ~= nil and ZenNumber == 0 then
+		KaradaNumber = ZensetKarada[Kanjou]
+	elseif ZensetKarada[ZenNumber] ~= nil then
+		KaradaNumber = ZensetKarada[ZenNumber]
+	else
+		KaradaNumber = BaseKarada
+	end
+end
+if HokaNumber == -1 then
+	if ZensetHoka[Kanjou] ~= nil and ZenNumber == 0 then
+		HokaNumber = ZensetHoka[Kanjou]
+	elseif ZensetHoka[ZenNumber] ~= nil then
+		HokaNumber = ZensetHoka[ZenNumber]
+	else
+		HokaNumber = BaseHoka
+	end
+end
+if KumiNumber == -1 then
+	if ZensetKumi[Kanjou] ~= nil and ZenNumber == 0 then
+		KumiNumber = ZensetKumi[Kanjou]
+	elseif ZensetKumi[ZenNumber] ~= nil then
+		KumiNumber = ZensetKumi[ZenNumber]
+	else
+		KumiNumber = BaseKumi
+	end
+end
+
+-- 表情オブジェクトの拡大率を取得
+HyoujouZoom = obj.getvalue("zoom")/100
+
+-- 目パーツが眉や口位置の補正情報を持っている場合
+HoseiString = ""
+MayuIchiPos = 0
+KuchiIchiPos = 0
+FilePass = CHARA_SOZAI..CharaFolder..CN.."\\目\\"..string.format("%02d",MeNumber)..".png"
+if os.rename(FilePass,FilePass) == nil then
+	FilePass = CHARA_SOZAI..CharaFolder..CN.."\\目\\"..string.format("%02d",MeNumber).."-15.png"
+	if os.rename(FilePass,FilePass) ~= nil then
+		HoseiString = "-15"
+		KuchiIchiPos = -15
+	else
+		for Count = 12 , -12 , -1 do
+			PlusMinus = "+"
+			if Count < 0 then PlusMinus = "-" end
+			if Count ~= 0 then
+				FilePass = CHARA_SOZAI..CharaFolder..CN.."\\目\\"..string.format("%02d",MeNumber)..PlusMinus..Count.."m.png"
+				if os.rename(FilePass,FilePass) ~= nil then
+					HoseiString = PlusMinus..Count.."m"
+					MayuIchiPos = Count
+					break
+				end
+			end
+		end
+	end
+end
+
+-- 元からあるテキストの非表示
+obj.alpha = 0
+
+-- 関数：跳ねる
+function Haneru()
+
+	HaneTime = 2*HaneHaba/HaneSokudo
+	if obj.totaltime - obj.time > obj.totaltime % (HaneTime+ChakuchiMa) then -- オブジェクトの残り時間が、跳ねと着地時間以上である限り、跳ねる
+		if obj.time % (HaneTime+ChakuchiMa) < HaneTime then
+			HaneRate = (obj.time % (HaneTime+ChakuchiMa)) / HaneTime
+			Fuyuudo = Fuyuudo + HaneHaba * math.sin(math.pi*HaneRate)
+		else
+			if CushionDo > 0 and ChakuchiMa > 0 then
+				ChakuchiRate = (obj.time % (HaneTime+ChakuchiMa) - HaneTime) / ChakuchiMa
+				obj.aspect = -0.1*CushionDo*math.sin(math.pi*ChakuchiRate)
+				obj.zoom = obj.zoom*(1 + 0.1*CushionDo*math.sin(math.pi*ChakuchiRate))
+				Fuyuudo = Fuyuudo - obj.h/6 * obj.aspect^2 * obj.zoom
+			end
+		end
+	end
+
+end
+
+-- 台詞なし表示がONか、音声ファイル有る場合のみ、表情を描画
+if BaseSH == 1 or file ~= "" then
+
+	-- 外部関数：拡張アニメーションを読み込み、実行
+	ObjTime = BaseTime
+	CharaObjectFlag = 1
+	require("拡張アニメーション")
+	ExAnimation()
+
+	-- 目パチ型アニメーションの目パーツかどうかを判定
+	FilePass = CHARA_SOZAI..CharaFolder..CN.."\\目\\"..string.format("%02d",MeNumber)..MeString..HoseiString..".png"
+	if os.rename(FilePass,FilePass) == nil then MeString = "" end
+
+	-- 目の登退型アニメーション（スムーズな目閉じ、ウィンクなど）
+	FilePass = CHARA_SOZAI..CharaFolder..CN.."\\目\\"..string.format("%02d",MeNumber).."k"..HoseiString..".png"
+	if os.rename(FilePass,FilePass) ~= nil then
+
+		InRate = obj.time / (【目パチ時間】*5/12)
+		OutRate = (obj.totaltime - obj.time) / (【目パチ時間】*5/12)
+
+		if InRate <= 0.2 or OutRate <= 0.2 then
+			MeString = ""
+		elseif InRate <= 0.4 or OutRate <= 0.4 then
+			MeString = "k"
+		elseif InRate <= 0.6 or OutRate <= 0.6 then
+			MeString = "l"
+		elseif InRate <= 0.8 or OutRate <= 0.8 then
+			MeString = "m"
+		elseif InRate <= 1.0 or OutRate <= 1.0 then
+			MeString = "n"
+		else
+			MeString = "o"
+		end
+
+	end
+
+	-- 口パク型アニメーション用分割数を決定し、音量ボーダーも決定
+	Bunkatsu = 0
+	while 1 do
+		FilePass = CHARA_SOZAI..CharaFolder..CN.."\\口\\"..string.format("%02d",KuchiNumber)..string.char(Bunkatsu+97)..".png"
+		if os.rename(FilePass,FilePass) == nil then break end
+		Bunkatsu = Bunkatsu + 1
+	end
+	OnryouBorder = 5*【音量ボーダー】/Bunkatsu
+
+	-- 口パク型アニメーション
+	KuchiString = ""
+	if Bunkatsu > 0 then
+
+		if file ~= "" then -- 音声ファイルの指定が有る場合（台詞が有る場合）
+
+			-- getaudioを参照し、口パク
+			if obj.time % (1/【口パク速度】) < 1 / obj.framerate  then
+
+				-- getaudioで台詞の周波数ごとの音量を取得
+				Onryou = {}
+				obj.getaudio(Onryou,file,"spectrum",32)
+
+				-- 平均音量を計算
+				HeikinOnryou = 0
+				for Count = 1 , 32 do
+					HeikinOnryou = HeikinOnryou + Onryou[Count]
+				end
+				HeikinOnryou = HeikinOnryou / 32
+
+				-- 口パク文字を決定
+				for Count = 1 , 10 do
+					if Count > Bunkatsu then break end
+					if HeikinOnryou > Count*OnryouBorder then KuchiString = string.char(Count+96) end
+				end
+
+				-- 口パク文字を一時退避
+				TempKuchiString = KuchiString
+
+			else -- 退避してた口パク文字を読み込み
+
+				KuchiString = TempKuchiString
+
+			end
+
+		end
+
+	end
+
+	-- パーツ画像統合の為、描画先を仮想バッファへ
+	obj.setoption("drawtarget","tempbuffer",1000,1000)
+
+	ShadowY = BaseH/2 -- キャラより下にアクセサリが有る場合の、地面影記入位置の追加ピクセル数
+
+	-- アクセサリの描画（後配置）
+	if AccessoryNumber > 0 then
+		obj.load(CHARA_SOZAI.."小道具\\アクセサリ\\"..string.format("%02d",AccessoryNumber).."u.png")
+
+		-- 地面影の位置（アクセサリ込みキャラの最下点）を計算
+		if AccessoryY + AccessoryZoom*obj.h/2 > BaseH/2 then ShadowY = math.ceil(AccessoryY + AccessoryZoom*obj.h/2) end
+
+		obj.effect("色調補正","色相",AccessoryShikisou)
+		if BaseAR == 1 then obj.effect("反転","左右反転",1) end
+		obj.draw(AccessoryX+(math.ceil(obj.w/BaseZoom)%2)/2,AccessoryY+(math.ceil(obj.h/BaseZoom)%2)/2-100,0,AccessoryZoom)
+	end
+
+	if ZenNumber > 0 and ZensetSonzai[ZenNumber] ~= 1 then
+
+		-- 全を描画
+		obj.load(CHARA_SOZAI..CharaFolder..CN.."\\全\\"..string.format("%02d",ZenNumber)..".png")
+		obj.draw((math.ceil(obj.w/BaseZoom)%2)/2,(math.ceil(obj.h/BaseZoom)%2)/2-100)
+
+	else
+
+		-- 後の描画（後配置）
+		obj.load(CHARA_SOZAI..CharaFolder..CN.."\\後\\"..string.format("%02d",KumiNumber)..AryUshiroKumiString[0]..".png")
+		obj.draw((math.ceil(obj.w/BaseZoom)%2)/2,(math.ceil(obj.h/BaseZoom)%2)/2-100)
+		for Count = 1 , 9 do
+			FilePass = CHARA_SOZAI..CharaFolder..CN.."\\後\\"..string.format("%02d",KumiNumber).."u"..Count..AryUshiroKumiString[Count]..".png"
+			if os.rename(FilePass,FilePass) == nil then break end
+			obj.load(CHARA_SOZAI..CharaFolder..CN.."\\後\\"..string.format("%02d",KumiNumber).."u"..Count..AryUshiroKumiString[Count]..".png")
+			obj.draw((math.ceil(obj.w/BaseZoom)%2)/2,(math.ceil(obj.h/BaseZoom)%2)/2-100)
+		end
+
+		-- 体を描画
+		obj.load(CHARA_SOZAI..CharaFolder..CN.."\\体\\"..string.format("%02d",KaradaNumber)..KaradaString..".png")
+		obj.draw((math.ceil(obj.w/BaseZoom)%2)/2,(math.ceil(obj.h/BaseZoom)%2)/2-100)
+
+		-- 顔を描画
+		FilePass = CHARA_SOZAI..CharaFolder..CN.."\\顔\\"..string.format("%02d",KaoNumber)..".png"
+		if os.rename(FilePass,FilePass) ~= nil then -- キャラ素材Ver1の顔パーツの場合
+
+			-- 顔を描画（旧仕様）
+			obj.load(CHARA_SOZAI..CharaFolder..CN.."\\顔\\"..string.format("%02d",KaoNumber)..".png")
+			obj.draw((math.ceil(obj.w/BaseZoom)%2)/2,(math.ceil(obj.h/BaseZoom)%2)/2-100)
+
+			-- 髪を描画（不透明）
+			FilePass = CHARA_SOZAI..CharaFolder..CN.."\\髪\\"..string.format("%02d",KaradaNumber).."a.png"
+			if os.rename(FilePass,FilePass) ~= nil then
+				obj.load(CHARA_SOZAI..CharaFolder..CN.."\\髪\\"..string.format("%02d",KaradaNumber).."a.png")
+				obj.draw((math.ceil(obj.w/BaseZoom)%2)/2,(math.ceil(obj.h/BaseZoom)%2)/2-100)
+			else
+				obj.load(CHARA_SOZAI..CharaFolder..CN.."\\髪\\00.png")
+				obj.draw((math.ceil(obj.w/BaseZoom)%2)/2,(math.ceil(obj.h/BaseZoom)%2)/2-100)
+			end
+
+			if KaoNumber < 10 then 
+
+				-- 眉を描画
+				obj.load(CHARA_SOZAI..CharaFolder..CN.."\\眉\\"..string.format("%02d",MayuNumber)..".png")
+				obj.draw((math.ceil(obj.w/BaseZoom)%2)/2,(math.ceil(obj.h/BaseZoom)%2)/2-100 + MayuIchiPos)
+
+				-- 目を描画
+				obj.load(CHARA_SOZAI..CharaFolder..CN.."\\目\\"..string.format("%02d",MeNumber)..MeString..HoseiString..".png")
+				obj.draw((math.ceil(obj.w/BaseZoom)%2)/2,(math.ceil(obj.h/BaseZoom)%2)/2-100)
+
+				-- 口を描画
+				obj.load(CHARA_SOZAI..CharaFolder..CN.."\\口\\"..string.format("%02d",KuchiNumber)..KuchiString..".png")
+				obj.draw((math.ceil(obj.w/BaseZoom)%2)/2,(math.ceil(obj.h/BaseZoom)%2)/2-100 + KuchiIchiPos)
+
+			end
+
+		else -- キャラ素材Ver2以降の顔パーツの場合
+
+			-- 顔を描画（赤面の場合）
+			obj.load(CHARA_SOZAI..CharaFolder..CN.."\\顔\\"..string.format("%02d",KaoNumber).."a.png")
+			obj.draw((math.ceil(obj.w/BaseZoom)%2)/2,(math.ceil(obj.h/BaseZoom)%2)/2-100)
+
+			-- 髪を描画（不透明）
+			FilePass = CHARA_SOZAI..CharaFolder..CN.."\\髪\\"..string.format("%02d",KaradaNumber).."a.png"
+			if os.rename(FilePass,FilePass) ~= nil then
+				obj.load(CHARA_SOZAI..CharaFolder..CN.."\\髪\\"..string.format("%02d",KaradaNumber).."a.png")
+				obj.draw((math.ceil(obj.w/BaseZoom)%2)/2,(math.ceil(obj.h/BaseZoom)%2)/2-100)
+			else
+				obj.load(CHARA_SOZAI..CharaFolder..CN.."\\髪\\00.png")
+				obj.draw((math.ceil(obj.w/BaseZoom)%2)/2,(math.ceil(obj.h/BaseZoom)%2)/2-100)
+			end
+
+			FilePass = CHARA_SOZAI..CharaFolder..CN.."\\目\\"..string.format("%02d",MeNumber).."x"..HoseiString..".png"
+			if os.rename(FilePass,FilePass) ~= nil then -- 目眉口セットパーツの場合
+
+				-- 目を描画
+				obj.load(CHARA_SOZAI..CharaFolder..CN.."\\目\\"..string.format("%02d",MeNumber).."x"..HoseiString..".png")
+				obj.draw((math.ceil(obj.w/BaseZoom)%2)/2,(math.ceil(obj.h/BaseZoom)%2)/2-100)
+
+			else -- 目眉口セットパーツでない場合
+
+				FilePass = CHARA_SOZAI..CharaFolder..CN.."\\目\\"..string.format("%02d",MeNumber).."y"..HoseiString..".png"
+				if os.rename(FilePass,FilePass) ~= nil then -- 目眉セットパーツの場合
+
+					-- 眉を描画
+					obj.load(CHARA_SOZAI..CharaFolder..CN.."\\眉\\"..string.format("%02d",MayuNumber)..".png")
+					obj.draw((math.ceil(obj.w/BaseZoom)%2)/2,(math.ceil(obj.h/BaseZoom)%2)/2-100 + MayuIchiPos)
+
+					-- 目を描画
+					obj.load(CHARA_SOZAI..CharaFolder..CN.."\\目\\"..string.format("%02d",MeNumber).."y"..HoseiString..".png")
+					obj.draw((math.ceil(obj.w/BaseZoom)%2)/2,(math.ceil(obj.h/BaseZoom)%2)/2-100)
+
+				else -- 目眉セットパーツでない場合
+
+					FilePass = CHARA_SOZAI..CharaFolder..CN.."\\目\\"..string.format("%02d",MeNumber).."z"..HoseiString..".png"
+					if os.rename(FilePass,FilePass) ~= nil then -- 目眉セットパーツの場合
+
+						-- 目を描画
+						obj.load(CHARA_SOZAI..CharaFolder..CN.."\\目\\"..string.format("%02d",MeNumber).."z"..HoseiString..".png")
+						obj.draw((math.ceil(obj.w/BaseZoom)%2)/2,(math.ceil(obj.h/BaseZoom)%2)/2-100)
+
+						-- 口を描画
+						obj.load(CHARA_SOZAI..CharaFolder..CN.."\\口\\"..string.format("%02d",KuchiNumber)..KuchiString..".png")
+						obj.draw((math.ceil(obj.w/BaseZoom)%2)/2,(math.ceil(obj.h/BaseZoom)%2)/2-100 + KuchiIchiPos)
+
+
+					else -- 目眉セットパーツでない場合
+
+						-- 眉を描画
+						obj.load(CHARA_SOZAI..CharaFolder..CN.."\\眉\\"..string.format("%02d",MayuNumber)..".png")
+						obj.draw((math.ceil(obj.w/BaseZoom)%2)/2,(math.ceil(obj.h/BaseZoom)%2)/2-100 + MayuIchiPos)
+
+						-- 目を描画
+						obj.load(CHARA_SOZAI..CharaFolder..CN.."\\目\\"..string.format("%02d",MeNumber)..MeString..HoseiString..".png")
+						obj.draw((math.ceil(obj.w/BaseZoom)%2)/2,(math.ceil(obj.h/BaseZoom)%2)/2-100)
+
+						-- 口を描画
+						obj.load(CHARA_SOZAI..CharaFolder..CN.."\\口\\"..string.format("%02d",KuchiNumber)..KuchiString..".png")
+						obj.draw((math.ceil(obj.w/BaseZoom)%2)/2,(math.ceil(obj.h/BaseZoom)%2)/2-100 + KuchiIchiPos)
+
+					end
+
+				end
+
+			end
+
+		end
+
+		-- 髪を描画（半透明）
+		FilePass = CHARA_SOZAI..CharaFolder..CN.."\\髪\\"..string.format("%02d",KaradaNumber).."b.png"
+		if os.rename(FilePass,FilePass) ~= nil then
+			obj.load(CHARA_SOZAI..CharaFolder..CN.."\\髪\\"..string.format("%02d",KaradaNumber).."b.png")
+			obj.draw((math.ceil(obj.w/BaseZoom)%2)/2,(math.ceil(obj.h/BaseZoom)%2)/2-100)
+		else
+			FilePass = CHARA_SOZAI..CharaFolder..CN.."\\髪\\"..string.format("%02d",KaradaNumber).."a.png"
+			if os.rename(FilePass,FilePass) ~= nil then
+				obj.load(CHARA_SOZAI..CharaFolder..CN.."\\髪\\"..string.format("%02d",KaradaNumber).."a.png")
+				obj.draw((math.ceil(obj.w/BaseZoom)%2)/2,(math.ceil(obj.h/BaseZoom)%2)/2-100,0,1,0.5)
+			else
+				FilePass = CHARA_SOZAI..CharaFolder..CN.."\\髪\\01.png"
+				if os.rename(FilePass,FilePass) ~= nil then
+					obj.load(CHARA_SOZAI..CharaFolder..CN.."\\髪\\01.png")
+					obj.draw((math.ceil(obj.w/BaseZoom)%2)/2,(math.ceil(obj.h/BaseZoom)%2)/2-100)
+				else
+					obj.load(CHARA_SOZAI..CharaFolder..CN.."\\髪\\00.png")
+					obj.draw((math.ceil(obj.w/BaseZoom)%2)/2,(math.ceil(obj.h/BaseZoom)%2)/2-100,0,1,0.5)
+				end
+			end
+		end
+
+		-- 他を描画
+		obj.load(CHARA_SOZAI..CharaFolder..CN.."\\他\\"..string.format("%02d",HokaNumber)..HokaString..".png")
+		obj.draw((math.ceil(obj.w/BaseZoom)%2)/2,(math.ceil(obj.h/BaseZoom)%2)/2-100)
+
+		-- 後の描画（前配置）
+		for Count = 1 , 9 do
+			FilePass = CHARA_SOZAI..CharaFolder..CN.."\\後\\"..string.format("%02d",KumiNumber).."m"..Count..AryMaeKumiString[Count]..".png"
+			if os.rename(FilePass,FilePass) == nil then break end
+			obj.load(CHARA_SOZAI..CharaFolder..CN.."\\後\\"..string.format("%02d",KumiNumber).."m"..Count..AryMaeKumiString[Count]..".png")
+			obj.draw((math.ceil(obj.w/BaseZoom)%2)/2,(math.ceil(obj.h/BaseZoom)%2)/2-100)
+		end
+
+	end
+
+	-- アクセサリの描画（前配置）
+	if AccessoryNumber > 0 then
+		obj.load(CHARA_SOZAI.."小道具\\アクセサリ\\"..string.format("%02d",AccessoryNumber)..".png")
+
+		-- 地面影の位置（アクセサリ込みキャラの最下点）を計算
+		if AccessoryY + AccessoryZoom*obj.h/2 > BaseH/2 then ShadowY = math.ceil(AccessoryY + AccessoryZoom*obj.h/2) end
+
+		obj.effect("色調補正","色相",AccessoryShikisou)
+		if BaseAR == 1 then obj.effect("反転","左右反転",1) end
+		obj.draw(AccessoryX+(math.ceil(obj.w/BaseZoom)%2)/2,AccessoryY+(math.ceil(obj.h/BaseZoom)%2)/2-100,0,AccessoryZoom)
+	end
+
+	-- 地面影を仮想バッファに描画
+	if BaseDS == 1 then
+		obj.load("tempbuffer",100,0,800,800)
+		if math.abs(BaseRV-HyoujouRV) == 1 then obj.effect("反転","左右反転",1) end
+		obj.drawpoly(-300,300,0, 500,300,0, 300,500,0, -500,500,0,  0,0, 800,0, 800,800, 0,800) -- 傾斜変換して描画
+	end
+
+	-- 描画先をフレームバッファ、描画モードを通常
+	obj.setoption("drawtarget","framebuffer")
+	obj.setoption("blend",0)
+
+	-- 地面影の描画
+	if BaseDS == 1 then
+
+		obj.load("tempbuffer",0,800,1000,200)
+
+		Fuyuudo = BaseFuyuudo
+		if HaneHaba > 0 then Haneru() end -- 跳ねるを適用
+
+		if TsuneniAruki == 1 then -- 常に歩き振動を適用
+			Fuyuudo = Fuyuudo + ArukiShinpuku*math.abs(math.sin(2*math.pi*BaseTime/0.6))
+		end
+
+		-- 浮遊度から、地面影のぼかし、ズーム、透明度を設定
+		ShadowBokashi = 5
+		ShadowZoom = 1
+		ShadowAlpha = 0.4
+		if Fuyuudo > 9 then
+			ShadowBokashi = ShadowBokashi + 0.18*(Fuyuudo + BaseFA * math.sin(2*math.pi * (BaseTime+BaseFuyuuStart)/BaseFS))
+			ShadowZoom = ShadowZoom - 0.0015*(Fuyuudo + BaseFA * math.sin(2*math.pi * (BaseTime+BaseFuyuuStart)/BaseFS))
+			ShadowAlpha = ShadowAlpha - 0.0015*(Fuyuudo + BaseFA * math.sin(2*math.pi * (BaseTime+BaseFuyuuStart)/BaseFS))
+		else
+			ShadowBokashi = ShadowBokashi + 0.18*Fuyuudo
+			ShadowZoom = ShadowZoom - 0.0015*Fuyuudo
+			ShadowAlpha = ShadowAlpha - 0.0015*Fuyuudo
+		end
+
+		-- 地面影に変換
+		obj.effect("グラデーション","color",0x000000,"color2",0x000000) 
+		obj.effect("ぼかし","範囲",ShadowBokashi)
+		obj.ox = obj.ox + BaseX + HyoujouZoom*BaseZoom*ShadowY/4 + 0.35*HyoujouZoom*BaseZoom*Fuyuudo
+		obj.oy = obj.oy + BaseY + HyoujouZoom*BaseZoom*ShadowY*3/4 - 0.35*HyoujouZoom*BaseZoom*Fuyuudo
+		obj.alpha = obj.alpha * ShadowAlpha
+		obj.zoom = obj.zoom * BaseZoom * ShadowZoom
+
+		-- 震えるを適用
+		if Furueru > 0 then obj.effect("振動","X",Furueru,"Y",Furueru) end
+
+		obj.effect() -- ユーザーが追加したフィルタ効果を適用
+		obj.draw()
+
+	end
+
+	-- キャラ本体の描画
+	obj.load("tempbuffer",100,0,800,800)
+
+	Fuyuudo = BaseFuyuudo
+	if HaneHaba > 0 then Haneru() end -- 跳ねるを適用
+
+	if TsuneniAruki == 1 then -- 常に歩き振動を適用
+		Fuyuudo = Fuyuudo + ArukiShinpuku*math.abs(math.sin(2*math.pi*BaseTime/0.6))
+	end
+
+	obj.ox = BaseX
+	obj.oy = BaseY
+	obj.oz = BaseZ
+	obj.rx = BaseRX
+	obj.ry = BaseRY
+	obj.rz = BaseRZ
+	obj.alpha = BaseAlpha
+	obj.zoom = obj.zoom * BaseZoom
+
+	if math.abs(BaseRV-HyoujouRV) == 1 then obj.effect("反転","左右反転",1) end
+
+	if BaseFW > 0 then obj.effect("縁取り","サイズ",BaseFW,"ぼかし",15,"color",BaseFC) end
+	if BaseKW > 0 then obj.effect("シャドー","X",BaseKW*math.cos(-math.rad(obj.rz)+math.pi/4),"Y",BaseKW*math.sin(-math.rad(obj.rz)+math.pi/4),"拡散",1,"濃さ",70,"color",0x000000) end
+
+	obj.oy = obj.oy - Fuyuudo
+	if Fuyuudo > 0 then obj.oy = obj.oy - BaseFA * math.sin(2*math.pi * (BaseTime+BaseFuyuuStart)/BaseFS) end
+
+	if Furueru > 0 then obj.effect("振動","X",Furueru,"Y",Furueru) end
+
+	obj.effect() -- ユーザーが追加したフィルタ効果を適用
+	obj.draw()
+
+	-- 顔の描画（蒼白の場合）
+	FilePass = CHARA_SOZAI..CharaFolder..CN.."\\顔\\"..string.format("%02d",KaoNumber).."b.png"
+	if os.rename(FilePass,FilePass) ~= nil then
+
+		if ZenNumber == 0 or ZensetSonzai[ZenNumber] == 1 then
+
+			obj.load(CHARA_SOZAI..CharaFolder..CN.."\\顔\\"..string.format("%02d",KaoNumber).."b.png")
+
+			obj.setoption("blend",3) -- 描画モードを乗算に変更
+
+			Fuyuudo = BaseFuyuudo
+			if HaneHaba > 0 then Haneru() end -- 跳ねるを適用
+
+			if TsuneniAruki == 1 then -- 常に歩き振動を適用
+				Fuyuudo = Fuyuudo + ArukiShinpuku*math.abs(math.sin(2*math.pi*BaseTime/0.6))
+			end
+
+			obj.ox = BaseX
+			obj.oy = BaseY
+			obj.oz = BaseZ
+			obj.alpha = BaseAlpha
+			obj.zoom = obj.zoom * BaseZoom
+
+			if math.abs(BaseRV-HyoujouRV) == 1 then obj.effect("反転","左右反転",1) end
+			obj.oy = obj.oy - Fuyuudo
+			if Fuyuudo > 0 then obj.oy = obj.oy - BaseFA * math.sin(2*math.pi * (BaseTime+BaseFuyuuStart)/BaseFS) end
+
+			if Furueru > 0 then obj.effect("振動","X",Furueru,"Y",Furueru) end
+
+			obj.draw((math.ceil(obj.w/BaseZoom)%2)/2,(math.ceil(obj.h/BaseZoom)%2)/2)
+
+			-- 正常に乗算描画を行い通常描画に戻す為に、透明度0で再描画
+			obj.load(CHARA_SOZAI..CharaFolder..CN.."\\顔\\"..string.format("%02d",KaoNumber).."b.png")
+			obj.setoption("blend",0) -- 描画モードを通常に戻す
+			obj.alpha = 0
+
+			obj.effect() -- ユーザーが追加したフィルタ効果を適用
+			obj.draw()
+
+		end
+
+	end
+
+	-- マークの描画
+	if MarkNumber > 0 then
+
+		FilePass = CHARA_SOZAI.."小道具\\マーク\\"..string.format("%02d",MarkNumber)..MarkString..".png"
+		if os.rename(FilePass,FilePass) ~= nil then
+
+			-- マーク速度を定義
+			MarkSokudo = MV * 10
+
+			-- 関数：マークのアンカーポイントを設置
+			function SetMarkAnchor(AnchorSuu)
+
+				if AnchorSuu == 1 then
+					obj.setanchor("Pos",1,"line")
+					MarkX = Pos[1]
+					MarkY = Pos[2]
+				else
+					obj.setanchor("Pos",2,"line")
+					MarkX = Pos[1]
+					MarkY = Pos[2]
+					KitenX = Pos[3]
+					KitenY = Pos[4]
+					AnchorLength = math.sqrt((MarkX - KitenX)^2+(MarkY - KitenY)^2)
+				end
+
+			end
+
+			-- マークの読み込み
+			obj.load(CHARA_SOZAI.."小道具\\マーク\\"..string.format("%02d",MarkNumber)..MarkString..".png")
+
+			-- 仮想バッファの縦横サイズを決定
+			BufferW = 0
+			while BufferW < obj.w / MarkZoom do
+				BufferW = BufferW + 200
+			end
+			BufferH = 0
+			while BufferH < obj.h / MarkZoom do
+				BufferH = BufferH + 200
+			end
+
+			-- 描画先を仮想バッファへ
+			obj.setoption("drawtarget","tempbuffer",BufferW,BufferH)
+
+			-- 仮想バッファに立ち絵を描画
+			obj.draw((math.ceil(obj.w/MarkZoom)%2)/2,(math.ceil(obj.h/MarkZoom)%2)/2)
+
+			-- 描画先をフレームバッファ、描画モードを通常
+			obj.setoption("drawtarget","framebuffer")
+
+			-- 仮想バッファから読み込み
+			obj.load("tempbuffer")
+
+			if MarkEnshutsu == 0 then -- 演出が設定されていない場合
+
+				SetMarkAnchor(1)
+
+				obj.ox = MarkX
+				obj.oy = MarkY
+
+			else -- 演出が設定されている場合
+
+				if MarkEnshutsu ~= 4 then -- 繰り返し放出以外は、最初と最後にフェード
+
+					InRate = obj.time / 0.3
+					OutRate = (obj.totaltime - obj.time) / 0.3
+
+					if InRate <= 1 then
+						obj.alpha = InRate*(1+0.4*math.sin(math.pi*InRate))
+					elseif OutRate <= 1 then
+						obj.alpha = OutRate*(1+0.4*math.sin(math.pi*OutRate))
+					end
+
+				end
+
+				if MarkEnshutsu == 1 then -- 拡大登場
+
+					SetMarkAnchor(2)
+
+					obj.ox = MarkX
+					obj.oy = MarkY
+
+					InRate = obj.time / (AnchorLength/MarkSokudo)
+
+					if InRate <= 1 then
+						obj.ox = KitenX + (MarkX - KitenX) * InRate*(1+0.4*math.sin(math.pi*InRate))
+						obj.oy = KitenY + (MarkY - KitenY) * InRate*(1+0.4*math.sin(math.pi*InRate))
+						obj.zoom = obj.zoom * InRate*(1+0.4*math.sin(math.pi*InRate))
+					end
+
+				elseif MarkEnshutsu == 2 then -- 伸縮登場
+
+					SetMarkAnchor(2)
+
+					obj.ox = MarkX
+					obj.oy = MarkY
+
+					InRate = obj.time / (AnchorLength/MarkSokudo)
+
+					if InRate <= 1 then
+						obj.ox = KitenX + (MarkX - KitenX) * InRate*(1+0.5*math.sin(math.pi*InRate))
+						obj.oy = KitenY + (MarkY - KitenY) * InRate*(1+0.5*math.sin(math.pi*InRate))
+						obj.aspect = -0.5 * math.sin(3*math.pi*InRate)
+						obj.zoom = obj.zoom * InRate*(1+0.5*math.sin(math.pi*InRate)) * (1+math.abs(0.5 * math.sin(3*math.pi*InRate)))
+						obj.alpha = obj.alpha * InRate*(1+0.4*math.sin(math.pi*InRate))
+					elseif OutRate <= 1 then
+						obj.alpha = obj.alpha * OutRate*(1+0.4*math.sin(math.pi*OutRate))
+					end
+
+				elseif MarkEnshutsu == 3 then -- 鼓動
+
+					SetMarkAnchor(1)
+
+					obj.ox = MarkX
+					obj.oy = MarkY
+
+					Rate = (obj.time % (200/MarkSokudo)) / (200/MarkSokudo)
+
+					obj.zoom = obj.zoom * (0.9+0.1*math.sin(2*math.pi*Rate))
+
+				elseif MarkEnshutsu == 4 then -- 繰り返し放出
+
+					SetMarkAnchor(2)
+
+					obj.ox = MarkX
+					obj.oy = MarkY
+
+					Rate = (obj.time%(2*AnchorLength/MarkSokudo)) / (2*AnchorLength/MarkSokudo)
+
+					if obj.totaltime - obj.time > obj.totaltime % (2*AnchorLength/MarkSokudo) then
+
+						if Rate <= 0.5 then
+							obj.ox = KitenX + (MarkX - KitenX) * (Rate/0.5)*(1+0.4*math.sin(math.pi*(Rate/0.5)))
+							obj.oy = KitenY + (MarkY - KitenY) * (Rate/0.5)*(1+0.4*math.sin(math.pi*(Rate/0.5)))
+							obj.zoom = obj.zoom * (Rate/0.5)*(1+0.4*math.sin(math.pi*(Rate/0.5)))
+							obj.alpha = obj.alpha * (Rate/0.5)*(1+0.4*math.sin(math.pi*(Rate/0.5)))
+						elseif Rate > 0.9 then
+							obj.alpha = obj.alpha * (1-Rate)/0.1*(1+0.4*math.sin(math.pi*(1-Rate)/0.1))
+						end
+
+					else
+
+						obj.alpha = 0
+
+					end
+
+				elseif MarkEnshutsu == 5 then -- 振り子
+
+					SetMarkAnchor(2)
+
+					EnshutsuCycle = (4*MarkYure/180)*math.pi*AnchorLength/MarkSokudo
+					if AnchorLength < 20 then EnshutsuCycle = (4*MarkYure/180)*math.pi*20/MarkSokudo end
+
+					Rate = obj.time / ((4*MarkYure/180)*math.pi*AnchorLength/MarkSokudo)
+
+					obj.ox = KitenX
+					obj.oy = KitenY
+					obj.cx = math.ceil((KitenX - MarkX) / MarkZoom)
+					obj.cy = math.ceil((KitenY - MarkY) / MarkZoom)
+
+					obj.rz = (MarkYure/2)*math.sin(2*math.pi*Rate)
+
+				elseif MarkEnshutsu == 6 then -- 起点付き鼓動
+
+					SetMarkAnchor(2)
+
+					Rate = (obj.time % (200/MarkSokudo)) / (200/MarkSokudo)
+
+					obj.ox = KitenX + (MarkX - KitenX)*math.sin(0.6*math.pi*Rate + 0.2*math.pi)
+					obj.oy = KitenY + (MarkY - KitenY)*math.sin(0.6*math.pi*Rate + 0.2*math.pi)
+
+					obj.zoom = obj.zoom * math.sin(0.6*math.pi*Rate + 0.2*math.pi)
+
+				end
+
+			end
+
+			if MarkShikisou > 0 then obj.effect("色調補正","色相",MarkShikisou) end
+			if MarkRV == 1 then obj.effect("反転","左右反転",1) end
+			if MarkEdge > 0 then obj.effect("凸エッジ","幅",MarkEdge,"高さ",1,"角度",-obj.rz-45) end
+			if MarkFuchi > 0 then obj.effect("縁取り","サイズ",MarkFuchi,"ぼかし",15,"color",0xffffff) end
+			if MarkKage > 0 then obj.effect("シャドー","X",MarkKage*math.cos(-math.rad(obj.rz)+math.pi/4),"Y",MarkKage*math.sin(-math.rad(obj.rz)+math.pi/4),"拡散",1,"濃さ",70,"color",0x000000) end
+
+			obj.zoom = obj.zoom * MarkZoom / HyoujouZoom
+
+			obj.draw()
+
+		end
+
+	end
+
+end
+
+
+------------------------------------------------------------
+@立ち絵１
+------------------------------------------------------------
+--dialog:立ち絵名,TN="";左右反転/chk,RV=0;立ち絵の縁[pixel],FW=0;立ち絵の影[pixel],KW=0;台詞有り/chk,SA=0;待機グレー/chk,TG=1;待機透明度,TT=50;震える[pixel],FR=0;
+--track0:立ち絵,0,【立ち絵の上限】,0,1
+--track1:跳ねる,0,100,0,1
+--track2:揺れる,0,10,0,1
+--track3:起き上る,0,2.0,0
+
+-- トラックバーの値を取得
+TachieNumber = obj.track0
+Haneru = obj.track1
+Yureru = obj.track2
+Okiagaru = obj.track3
+
+-- ［設定］を取得
+TachieName = TN
+TachieRV = RV
+TachieFuchi = FW
+TachieKage = KW
+SerifuAri = SA
+TaikiGray = TG
+TaikiToumeido = TT
+Furueru = FR
+
+
+------------------------------------------------------------
+@立ち絵２
+------------------------------------------------------------
+--dialog:登場退場アンカー/chk,TP=0;登場速度,IS=10;退場速度,OS=10;登場時に反転/chk,IR=0;退場時に反転/chk,OR=1;歩き振幅[pixel],AA=4;常に歩き振動/chk,TA=0;跳ね高さ[pixel],HH=20;ジャンプ高さ[Pixel],JH=100;跳ね速度,HS=10;着地の間[秒],CM=0.15;
+--track0:登場演出,0,5,0,1
+--track1:退場演出,0,5,0,1
+--track2:フェード,0,2.0,0
+--track3:広がる,0,2.0,0
+
+-- トラックバーの値を取得
+ToujouEnshutsu = obj.track0
+TaijouEnshutsu = obj.track1
+FadeTime = obj.track2
+Hirogaru = obj.track3
+
+-- ［設定］を取得
+ToujouTaijouAnchor = TP
+ToujouSokudo = IS
+TaijouSokudo = OS
+ToujouRV = IR
+TaijouRV = OR
+ArukiShinpuku = AA
+TsuneniAruki = TA
+HaneTakasa = HH
+JumpTakasa = JH
+HaneSokudo = HS * 30
+ChakuchiMa = CM
+
+
+------------------------------------------------------------
+@立ち絵３
+------------------------------------------------------------
+--dialog:マーク反転/chk,MR=0;マークの縁[pixel],FW=0;マークの影[pixel],KW=0;マークのエッジ[pixel],EW=0;マーク速度,MV=10;マーク揺れ角度,FK=15;アンカーポイントM,MPos={-100,-100,-50,-50};アンカーポイントT,TPos={80,-10,80,-10};
+--track0:マーク,0,【マークの上限】,0,1
+--track1:M演出,0,6,2,1
+--track2:M拡大率,0,100,50,1
+--track3:M色相,0,360,0,1
+
+-- フォルダパスを定義
+CHARA_SOZAI = "【キャラ素材フォルダ】"
+
+-- トラックバーの値を取得
+MarkNumber = obj.track0
+MarkEnshutsu = obj.track1
+MarkZoom = obj.track2/100
+MarkShikisou = obj.track3
+
+-- ［設定］を取得
+MarkRV = MR
+MarkFuchi = FW
+MarkKage = KW
+MarkEdge = EW
+MarkYure = FK
+
+-- 立ち絵に設定されている拡大率を取得
+TachieZoom = obj.getvalue("zoom")/100
+
+-- 元からあるテキストの非表示
+obj.alpha = 0
+
+-- 立ち絵の読み込み
+AviFileHandle = io.open(CHARA_SOZAI.."立ち絵\\"..TachieName.."\\"..string.format("%02d",TachieNumber)..".avi")
+PngFileHandle = io.open(CHARA_SOZAI.."立ち絵\\"..TachieName.."\\"..string.format("%02d",TachieNumber)..".png")
+if AviFileHandle ~= nil then
+	io.close(AviFileHandle)
+	MovieTime = obj.load(CHARA_SOZAI.."立ち絵\\"..TachieName.."\\"..string.format("%02d",TachieNumber)..".avi")
+	if ToujouEnshutsu == 0 and TaijouEnshutsu > 0 then
+		if obj.totaltime - obj.time < MovieTime then
+			obj.load(CHARA_SOZAI.."立ち絵\\"..TachieName.."\\"..string.format("%02d",TachieNumber)..".avi",obj.time-(obj.totaltime-MovieTime),1)
+		else
+			obj.load(CHARA_SOZAI.."立ち絵\\"..TachieName.."\\"..string.format("%02d",TachieNumber)..".avi",0,1)
+		end
+	else
+		if obj.time < MovieTime then
+			obj.load(CHARA_SOZAI.."立ち絵\\"..TachieName.."\\"..string.format("%02d",TachieNumber)..".avi",obj.time,1)
+		else
+			obj.load(CHARA_SOZAI.."立ち絵\\"..TachieName.."\\"..string.format("%02d",TachieNumber)..".avi",MovieTime,1)
+		end
+	end
+elseif PngFileHandle ~= nil then
+	io.close(PngFileHandle)
+	obj.load(CHARA_SOZAI.."立ち絵\\"..TachieName.."\\"..string.format("%02d",TachieNumber)..".png")
+else
+	obj.load(CHARA_SOZAI.."立ち絵\\"..TachieName.."\\"..string.format("%02d",TachieNumber)..".bmp")
+end
+
+-- 仮想バッファの縦横サイズを決定
+BufferW = 0
+while BufferW < obj.w / TachieZoom do
+	BufferW = BufferW + 200
+end
+BufferH = 0
+while BufferH < obj.h / TachieZoom do
+	BufferH = BufferH + 200
+end
+
+-- 描画先を仮想バッファへ
+obj.setoption("drawtarget","tempbuffer",BufferW,BufferH)
+
+-- 仮想バッファに立ち絵を描画
+obj.draw((math.ceil(obj.w/TachieZoom)%2)/2,(math.ceil(obj.h/TachieZoom)%2)/2)
+
+-- 描画先をフレームバッファ、描画モードを通常
+obj.setoption("drawtarget","framebuffer")
+
+-- 仮想バッファから読み込み
+obj.load("tempbuffer")
+
+-- 待機表示を適用
+if SerifuAri == 0 then -- 台詞なしオブジェクトが対象
+
+	obj.alpha = (1-TaikiToumeido/100) * obj.alpha
+	if TaikiGray == 1 then obj.effect("単色化","強さ",80,"color",0x000000) end
+
+end
+
+-- 縁と影と左右反転を適用
+if TachieRV == 1 then obj.effect("反転","左右反転",1) end
+if TachieFuchi > 0 then obj.effect("縁取り","サイズ",TachieFuchi,"ぼかし",15,"color",0xffffff) end
+if TachieKage > 0 then obj.effect("シャドー","X",TachieKage*math.cos(-math.rad(obj.rz)+math.pi/4),"Y",TachieKage*math.sin(-math.rad(obj.rz)+math.pi/4),"拡散",1,"濃さ",70,"color",0x000000) end
+
+-- 跳ねるを適用
+if Haneru > 0 then
+	HaneTime = 2*Haneru / HaneSokudo
+	if obj.totaltime - obj.time > obj.totaltime % (HaneTime+ChakuchiMa) then -- オブジェクトの残り時間が、跳ねと着地時間以上である限り、跳ねる
+		if obj.time % (HaneTime+ChakuchiMa) < HaneTime then
+			HaneRate = (obj.time % (HaneTime+ChakuchiMa)) / HaneTime
+			obj.oy = obj.oy - Haneru * math.sin(math.pi*HaneRate)
+		end
+	end
+end
+
+-- 震えるを適用
+if Furueru > 0 then obj.effect("振動","X",Furueru,"Y",Furueru) end
+
+-- 振り子を適用｛標準のアニメーション効果(exedit.anm)より拝借｝
+if Yureru > 0 then
+	if  obj.time < obj.totaltime - obj.totaltime%0.5 then
+		obj.rz = obj.rz + math.sin(obj.time * 2 * math.pi) * Yureru
+	end
+end
+
+-- 起き上るを適用｛標準のアニメーション効果(exedit.anm)より拝借｝
+if Okiagaru > 0 then
+
+	Ikioi = 1.0
+	Jikan = Okiagaru
+
+	t = (Jikan - obj.time)/Jikan
+
+	if t >= 0  then
+		n = Ikioi*2+1
+		if n <= 1  then
+			t = t*t
+		elseif t > 1-1/n then
+			t = 1-(1-t)*n
+		else
+			t = t*n/(n-1)
+			t = math.sin((t-1)*(n-1)*math.pi)*t*0.4/(1+(1-t)*3)
+		end
+		obj.rx = obj.rx - 90*t
+		obj.oy = obj.oy + obj.h*(1-math.cos(t*math.pi/2))/2
+		obj.oz = obj.oz + obj.h*math.sin(t*math.pi/2)/2
+	end
+
+end
+
+-- フェードを適用
+if FadeTime > 0 then
+	if obj.time < FadeTime then
+		if ToujouEnshutsu > 0 then obj.alpha = obj.alpha * obj.time / FadeTime end
+		if TaijouEnshutsu == 0 then obj.alpha = obj.alpha * obj.time / FadeTime end
+	end
+	if obj.totaltime - obj.time < FadeTime then
+		if TaijouEnshutsu > 0 then obj.alpha = obj.alpha * (obj.totaltime - obj.time) / FadeTime end
+	end
+end
+
+-- 広がるを適用｛標準のアニメーション効果(exedit.anm)より拝借｝
+if Hirogaru > 0 then
+	if obj.time < Hirogaru then
+		if ToujouEnshutsu > 0 then obj.aspect = ((Hirogaru - obj.time) / Hirogaru)^2 end
+		if TaijouEnshutsu == 0 then obj.aspect = ((Hirogaru - obj.time) / Hirogaru)^2 end
+	end
+	if obj.totaltime - obj.time < Hirogaru then
+		if TaijouEnshutsu > 0 then obj.aspect = ((Hirogaru - (obj.totaltime - obj.time)) / Hirogaru)^2 end
+	end
+end
+
+-- 登場退場地点を設定
+if ToujouTaijouAnchor == 1 then -- 「登場退場アンカー」がONなら
+
+	obj.setanchor("TPos",2,"star","inout") -- 登場/退場のアンカーポイントを設置
+
+	ToujouX = 3 * TPos[1] * obj.getvalue("zoom")/100
+	ToujouY = 3 * TPos[2] * obj.getvalue("zoom")/100
+	ToujouLength = math.sqrt(ToujouX^2 + ToujouY^2)
+
+	TaijouX = 3 * TPos[3] * obj.getvalue("zoom")/100
+	TaijouY = 3 * TPos[4] * obj.getvalue("zoom")/100
+	TaijouLength = math.sqrt(TaijouX^2 + TaijouY^2)
+
+else
+
+	if obj.x == 0 then
+		ToujouX = obj.screen_w/2 + obj.w/2
+	else
+		ToujouX = obj.x/math.abs(obj.x) * (obj.screen_w/2 + obj.w/2)
+	end
+	ToujouY = 0
+	ToujouLength = math.abs(ToujouX - obj.x)
+
+	TaijouX = ToujouX
+	TaijouY = 0
+	TaijouLength = ToujouLength
+
+end
+
+-- 登場演出の割合[0→1]
+InRate = 1
+if ToujouEnshutsu == 2 then -- 高速移動
+	ToujouSokudo = 50*ToujouSokudo
+	InRate = obj.time / (ToujouLength/ToujouSokudo)
+end
+if ToujouEnshutsu == 3 then -- ジャンプ
+	ToujouSokudo = 40*ToujouSokudo
+	InRate = obj.time / (ToujouLength/ToujouSokudo)
+end
+if ToujouEnshutsu == 4 then -- 変身
+	ToujouSokudo = 25*ToujouSokudo
+	InRate = obj.time / (100/ToujouSokudo)
+end
+if ToujouEnshutsu == 5 then -- 歩き移動
+	ToujouSokudo = 15*ToujouSokudo
+	InRate = obj.time / (ToujouLength/ToujouSokudo)
+end
+
+-- 退場演出の割合[1→0]
+OutRate = 1
+if TaijouEnshutsu == 2 then -- 高速移動
+	TaijouSokudo = 50*TaijouSokudo
+	OutRate = (obj.totaltime - obj.time) / (TaijouLength/TaijouSokudo)
+end
+if TaijouEnshutsu == 3 then -- ジャンプ
+	TaijouSokudo = 40*TaijouSokudo
+	OutRate = (obj.totaltime - obj.time) / (TaijouLength/TaijouSokudo)
+end
+if TaijouEnshutsu == 4 then -- 変身
+	TaijouSokudo = 25*TaijouSokudo
+	OutRate = (obj.totaltime - obj.time) / (100/TaijouSokudo)
+end
+if TaijouEnshutsu == 5 then -- 歩き移動
+	TaijouSokudo = 15*TaijouSokudo
+	OutRate = (obj.totaltime - obj.time) / (TaijouLength/TaijouSokudo)
+end
+
+-- 登場退場の変数を共通変数に代入
+Enshutsu = 0
+EnshutsuRV = 0
+Rate = 1
+if InRate < 1 then
+	ToutaiX = ToujouX
+	ToutaiY = ToujouY
+	ToutaiLength = ToujouLength
+	Enshutsu = ToujouEnshutsu
+	EnshutsuSokudo = ToujouSokudo
+	Rate = InRate
+	if ToujouEnshutsu > 1 then EnshutsuRV = ToujouRV end
+elseif OutRate < 1 then
+	ToutaiX = TaijouX
+	ToutaiY = TaijouY
+	ToutaiLength = TaijouLength
+	Enshutsu = TaijouEnshutsu
+	EnshutsuSokudo = TaijouSokudo
+	Rate = OutRate
+	if TaijouEnshutsu > 1 then EnshutsuRV = TaijouRV end
+end
+
+-- 登場退場演出の適用
+if Enshutsu == 2 then -- 直線移動
+
+	if Rate >= 0 and Rate < 1 then
+		obj.ox = ToutaiX * (1 - Rate*(1-0.3*math.sin(2*math.pi*Rate)))
+		obj.oy = ToutaiY * (1 - Rate*(1-0.3*math.sin(2*math.pi*Rate)))
+		if EnshutsuRV == 1 then obj.effect("反転","左右反転",1) end
+	end
+
+	obj.effect("方向ブラー","範囲",15*(1 - Rate*(1-0.3*math.sin(2*math.pi*Rate))),"角度",90)
+
+elseif Enshutsu == 3 then -- ジャンプ移動
+
+	-- アンカーポイントの位置を反映
+	if Rate >= 0 and Rate < 1 then
+		obj.ox = ToutaiX * (1 - Rate*(1-0.2*math.sin(2*math.pi*Rate)))
+		obj.oy = ToutaiY * (1 - Rate*(1-0.2*math.sin(2*math.pi*Rate))) - JumpTakasa * math.sin(math.pi*Rate*(1-0.2*math.sin(2*math.pi*Rate)))
+		if EnshutsuRV == 1 then obj.effect("反転","左右反転",1) end
+	end
+
+elseif Enshutsu == 4 then -- 変身
+
+	obj.oy = - (50/TachieZoom) * math.sin(math.pi*Rate*(1-0.2*math.sin(2*math.pi*Rate)))
+	obj.zoom = 0.5 + 0.5*Rate*(1+0.5*math.sin(math.pi*Rate))
+	obj.alpha = Rate
+
+	obj.effect("放射ブラー","範囲",100 * (1 - Rate*(1+0.2*math.sin(math.pi*Rate))))
+	obj.effect("色調補正","明るさ",100 + 150 * (1 - Rate*(1+0.3*math.sin(math.pi*Rate))))
+
+elseif Enshutsu == 5 then -- 歩き移動
+
+	-- アンカーポイントの位置を反映
+	if Rate >= 0 and Rate < 1 then
+		obj.ox = ToutaiX * (1 - Rate)
+		obj.oy = ToutaiY * (1 - Rate)
+		if EnshutsuRV == 1 then obj.effect("反転","左右反転",1) end
+	end
+
+	-- 歩き振動を反映
+	if obj.time < ToutaiLength/EnshutsuSokudo + (ToutaiLength/EnshutsuSokudo)%0.3 then
+		obj.oy = obj.oy - ArukiShinpuku * math.abs(math.sin(2*math.pi*obj.time/0.6))
+	elseif obj.totaltime - obj.time < ToutaiLength/EnshutsuSokudo + (ToutaiLength/EnshutsuSokudo)%0.3 then
+		obj.oy = obj.oy - ArukiShinpuku * math.abs(math.sin(-2*math.pi*(obj.totaltime - obj.time)/0.6))
+	end
+
+end
+
+-- 常に歩き振動を適用
+if Enshutsu ~= 5 and TsuneniAruki== 1 then
+	obj.oy = obj.oy - ArukiShinpuku * math.abs(math.sin(2*math.pi*obj.time/0.6))
+end
+
+obj.effect() -- ユーザーが追加したフィルタ効果を適用
+obj.draw() -- 各設定を適用した統合画像を描画
+
+-- マークの描画
+if MarkNumber > 0 then
+
+	-- 外部関数：拡張アニメーションを読み込み、実行
+	ObjTime = obj.time
+	CharaObjectFlag = 0
+	require("拡張アニメーション")
+	ExAnimation()
+
+	FilePass = CHARA_SOZAI.."小道具\\マーク\\"..string.format("%02d",MarkNumber)..".png"
+	if os.rename(FilePass,FilePass) ~= nil then
+
+		-- マーク速度を定義
+		MarkSokudo = MV * 10
+
+		-- 関数：マークのアンカーポイントを設置
+		function SetMarkAnchor(AnchorSuu)
+
+			if AnchorSuu == 1 then
+				obj.setanchor("MPos",1,"line")
+			else
+				obj.setanchor("MPos",2,"line")
+			end
+
+			MarkX = math.ceil(MPos[1]*TachieZoom)
+			MarkY = math.ceil(MPos[2]*TachieZoom)
+			KitenX = math.ceil(MPos[3]*TachieZoom)
+			KitenY = math.ceil(MPos[4]*TachieZoom)
+			AnchorLength = math.sqrt((MarkX - KitenX)^2+(MarkY - KitenY)^2)
+
+		end
+
+		-- マークの読み込み
+		obj.load(CHARA_SOZAI.."小道具\\マーク\\"..string.format("%02d",MarkNumber)..MarkString..".png")
+
+		-- 仮想バッファの縦横サイズを決定
+		BufferW = 0
+		while BufferW < obj.w / MarkZoom do
+			BufferW = BufferW + 200
+		end
+		BufferH = 0
+		while BufferH < obj.h / MarkZoom do
+			BufferH = BufferH + 200
+		end
+
+		-- 描画先を仮想バッファへ
+		obj.setoption("drawtarget","tempbuffer",BufferW,BufferH)
+
+		-- 仮想バッファに立ち絵を描画
+		obj.draw((math.ceil(obj.w/MarkZoom)%2)/2,(math.ceil(obj.h/MarkZoom)%2)/2)
+
+		-- 描画先をフレームバッファ、描画モードを通常
+		obj.setoption("drawtarget","framebuffer")
+
+		-- 仮想バッファから読み込み
+		obj.load("tempbuffer")
+
+		if MarkEnshutsu == 0 then -- 演出が設定されていない場合
+
+			SetMarkAnchor(1)
+
+			obj.ox = MarkX
+			obj.oy = MarkY
+
+		else -- 演出が設定されている場合
+
+			if MarkEnshutsu ~= 4 then -- 繰り返し放出以外は、最初と最後にフェード
+
+				InRate = obj.time / 0.3
+				OutRate = (obj.totaltime - obj.time) / 0.3
+
+				if InRate <= 1 then
+					obj.alpha = InRate*(1+0.4*math.sin(math.pi*InRate))
+				elseif OutRate <= 1 then
+					obj.alpha = OutRate*(1+0.4*math.sin(math.pi*OutRate))
+				end
+
+			end
+
+			if MarkEnshutsu == 1 then -- 拡大登場
+
+				SetMarkAnchor(2)
+
+				obj.ox = MarkX
+				obj.oy = MarkY
+
+				InRate = obj.time / (AnchorLength/MarkSokudo)
+
+				if InRate <= 1 then
+					obj.ox = KitenX + (MarkX - KitenX) * InRate*(1+0.4*math.sin(math.pi*InRate))
+					obj.oy = KitenY + (MarkY - KitenY) * InRate*(1+0.4*math.sin(math.pi*InRate))
+					obj.zoom = obj.zoom * InRate*(1+0.4*math.sin(math.pi*InRate))
+				end
+
+			elseif MarkEnshutsu == 2 then -- 伸縮登場
+
+				SetMarkAnchor(2)
+
+				obj.ox = MarkX
+				obj.oy = MarkY
+
+				InRate = obj.time / (AnchorLength/MarkSokudo)
+
+				if InRate <= 1 then
+					obj.ox = KitenX + (MarkX - KitenX) * InRate*(1+0.5*math.sin(math.pi*InRate))
+					obj.oy = KitenY + (MarkY - KitenY) * InRate*(1+0.5*math.sin(math.pi*InRate))
+					obj.aspect = -0.5 * math.sin(3*math.pi*InRate)
+					obj.zoom = obj.zoom * InRate*(1+0.5*math.sin(math.pi*InRate)) * (1+math.abs(0.5 * math.sin(3*math.pi*InRate)))
+					obj.alpha = obj.alpha * InRate*(1+0.4*math.sin(math.pi*InRate))
+				elseif OutRate <= 1 then
+					obj.alpha = obj.alpha * OutRate*(1+0.4*math.sin(math.pi*OutRate))
+				end
+
+			elseif MarkEnshutsu == 3 then -- 繰り返し拡大
+
+				SetMarkAnchor(1)
+
+				obj.ox = MarkX
+				obj.oy = MarkY
+
+				Rate = (obj.time % (200/MarkSokudo)) / (200/MarkSokudo)
+
+				obj.zoom = obj.zoom * (0.9+0.1*math.sin(2*math.pi*Rate))
+
+			elseif MarkEnshutsu == 4 then -- 繰り返し放出
+
+				SetMarkAnchor(2)
+
+				obj.ox = MarkX
+				obj.oy = MarkY
+
+				Rate = (obj.time%(2*AnchorLength/MarkSokudo)) / (2*AnchorLength/MarkSokudo)
+
+				if obj.totaltime - obj.time > obj.totaltime % (2*AnchorLength/MarkSokudo) then
+
+					if Rate <= 0.5 then
+						obj.ox = KitenX + (MarkX - KitenX) * (Rate/0.5)*(1+0.4*math.sin(math.pi*(Rate/0.5)))
+						obj.oy = KitenY + (MarkY - KitenY) * (Rate/0.5)*(1+0.4*math.sin(math.pi*(Rate/0.5)))
+						obj.zoom = obj.zoom * (Rate/0.5)*(1+0.4*math.sin(math.pi*(Rate/0.5)))
+						obj.alpha = obj.alpha * (Rate/0.5)*(1+0.4*math.sin(math.pi*(Rate/0.5)))
+					elseif Rate > 0.9 then
+						obj.alpha = obj.alpha * (1-Rate)/0.1*(1+0.4*math.sin(math.pi*(1-Rate)/0.1))
+					end
+
+				else
+
+					obj.alpha = 0
+
+				end
+
+			elseif MarkEnshutsu == 5 then -- 振り子
+
+				SetMarkAnchor(2)
+
+				EnshutsuCycle = (4*MarkYure/180)*math.pi*AnchorLength/MarkSokudo
+				if AnchorLength < 20 then EnshutsuCycle = (4*MarkYure/180)*math.pi*20/MarkSokudo end
+
+				Rate = obj.time / ((4*MarkYure/180)*math.pi*AnchorLength/MarkSokudo)
+
+				obj.ox = KitenX
+				obj.oy = KitenY
+				obj.cx = math.ceil((KitenX - MarkX) / MarkZoom)
+				obj.cy = math.ceil((KitenY - MarkY) / MarkZoom)
+
+				obj.rz = (MarkYure/2)*math.sin(2*math.pi*Rate)
+
+			elseif MarkEnshutsu == 6 then -- 起点付き鼓動
+
+				SetMarkAnchor(2)
+
+				Rate = (obj.time % (200/MarkSokudo)) / (200/MarkSokudo)
+
+				obj.ox = KitenX + (MarkX - KitenX)*math.sin(0.6*math.pi*Rate + 0.2*math.pi)
+				obj.oy = KitenY + (MarkY - KitenY)*math.sin(0.6*math.pi*Rate + 0.2*math.pi)
+
+				obj.zoom = obj.zoom * math.sin(0.6*math.pi*Rate + 0.2*math.pi)
+
+			end
+
+		end
+
+		if MarkShikisou > 0 then obj.effect("色調補正","色相",MarkShikisou) end
+		if MarkRV == 1 then obj.effect("反転","左右反転",1) end
+		if MarkEdge > 0 then obj.effect("凸エッジ","幅",MarkEdge,"高さ",1,"角度",-obj.rz-45) end
+		if MarkFuchi > 0 then obj.effect("縁取り","サイズ",MarkFuchi,"ぼかし",15,"color",0xffffff) end
+		if MarkKage > 0 then obj.effect("シャドー","X",MarkKage*math.cos(-math.rad(obj.rz)+math.pi/4),"Y",MarkKage*math.sin(-math.rad(obj.rz)+math.pi/4),"拡散",1,"濃さ",70,"color",0x000000) end
+
+		obj.zoom = obj.zoom * MarkZoom / TachieZoom
+
+		obj.draw()
+
+	end
+
+end
+
+
+------------------------------------------------------------
+@プレート１
+------------------------------------------------------------
+--track0:色相,0,360,0,1
+--track1:彩度,0,200,100,1
+--track2:明るさ,0,200,100,1
+--track3:ガラス度,0,100,0,1
+
+-- プレート３に渡す為、トラックバーの値を変数に代入
+Shikisou = obj.track0
+Saido = obj.track1
+Akarusa = obj.track2
+Garasudo = obj.track3
+
+
+------------------------------------------------------------
+@プレート２
+------------------------------------------------------------
+--track0:幅,0,864,320,1
+--track1:高さ,0,486,160,1
+--track2:余白,0,100,100,1
+--track3:テクスチャ,0,【テクスチャの上限】,1,1
+
+-- プレート３に渡す為、トラックバーの値を変数に代入
+PlateW = obj.track0
+PlateH = obj.track1
+Yohaku = obj.track2
+TextureNumber = obj.track3
+
+
+------------------------------------------------------------
+@プレート３
+------------------------------------------------------------
+--dialog:プレートを表示/chk,PV=1;テキストを表示/chk,TV=1;フェードテキスト/chk,FD=0;画面下にフィット/chk,FT=1;挿絵の透明度[1-100],SA=50;縁幅[pixel],FW=0;縁色/col,FC=0xffffff;縁位置[pixel],FI=0;エッジ幅[pixel],EW=1;影幅[pixel],KW=1;演出速度,ES=20;アンカーポイント,Pos={0,0};
+--track0:登場演出,0,12,0,1
+--track1:退場演出,0,12,0,1
+--track2:挿絵,0,99,1,1
+--track3:挿絵拡大,0,100,100,1
+
+-- フォルダパスを定義
+CHARA_SOZAI = "【キャラ素材フォルダ】"
+SASHIE_FOLDER = "【挿絵フォルダ】"
+
+-- 関数：プレート演出
+function PlateEnshutsu(TextFlag)
+
+	-- 画面下にフィットにチェックが有れば、フィット位置を代入
+	FitX = 0
+	FitY = 0
+	if FT == 1 then
+		FitX = -obj.x
+		FitY = obj.screen_h/2 - Takasa/2 - obj.y
+	end
+	obj.ox = FitX
+	obj.oy = FitY
+
+	StartTime = 0 -- 演出開始時刻
+	if TextFlag == 1 and FD == 1 then StartTime = (100/EnshutsuSokudo) + 0.1 end -- テキストの演出開始時刻
+
+	InRate = (obj.time - StartTime) / (100/EnshutsuSokudo) -- 登場時間の割合[0→1]
+	OutRate = (obj.totaltime - obj.time - StartTime) / (100/EnshutsuSokudo) -- 退場時間の割合[1→0]
+
+	Enshutsu = 0
+	if InRate <= 1 then Enshutsu = ToujouEnshutsu end
+	if OutRate <= 1 then Enshutsu = TaijouEnshutsu end
+
+	if TextFlag == 0 or FD == 0 then -- プレートと先表示テキストの演出
+
+		if Enshutsu >= 1 then --共通：フェード
+
+			if InRate <= 1 then
+				obj.alpha = InRate*(1+0.4*math.sin(math.pi*InRate))
+			elseif OutRate <= 1 then
+				obj.alpha = OutRate*(1+0.4*math.sin(math.pi*OutRate))
+			end
+
+		end
+
+		if Enshutsu == 2 then -- 上から登場、上へ退場
+
+			if InRate <= 1 then
+				obj.oy = obj.oy - 300 * (1-InRate*(1+0.4*math.sin(math.pi*InRate)))
+			elseif OutRate <= 1 then
+				obj.oy = obj.oy - 300 * (1-OutRate*(1+0.4*math.sin(math.pi*OutRate)))
+			end
+
+		elseif Enshutsu == 3 then -- 下から登場、下へ退場
+
+			if InRate <= 1 then
+				obj.oy = obj.oy + 300 * (1-InRate*(1+0.4*math.sin(math.pi*InRate)))
+			elseif OutRate <= 1 then
+				obj.oy = obj.oy + 300 * (1-OutRate*(1+0.4*math.sin(math.pi*OutRate)))
+			end
+
+		elseif Enshutsu == 4 then -- 左から登場、左へ退場
+
+			if InRate <= 1 then
+				obj.ox = obj.ox - 300 * (1-InRate*(1+0.4*math.sin(math.pi*InRate)))
+			elseif OutRate <= 1 then
+				obj.ox = obj.ox - 300 * (1-OutRate*(1+0.4*math.sin(math.pi*OutRate)))
+			end
+
+		elseif Enshutsu == 5 then -- 右から登場、右へ退場
+
+			if InRate <= 1 then
+				obj.ox = obj.ox + 300 * (1-InRate*(1+0.4*math.sin(math.pi*InRate)))
+			elseif OutRate <= 1 then
+				obj.ox = obj.ox + 300 * (1-OutRate*(1+0.4*math.sin(math.pi*OutRate)))
+			end
+
+		elseif Enshutsu == 6 then -- 縦回転
+
+			obj.oz = Takasa
+			obj.cz = Takasa
+
+			if InRate <= 1 then
+				obj.rx = -90 * (1 - InRate*(1-0.3*math.sin(2*math.pi*InRate)))
+			elseif OutRate <= 1 then
+				obj.rx = 90 * (1 - OutRate*(1-0.3*math.sin(2*math.pi*OutRate)))
+			end
+
+		elseif Enshutsu == 7 then -- 横回転
+
+			obj.oz = Haba
+			obj.cz = Haba
+
+			if InRate <= 1 then
+				obj.ry = 90 * (1 - InRate*(1-0.3*math.sin(2*math.pi*InRate)))
+			elseif OutRate <= 1 then
+				obj.ry = -90 * (1 - OutRate*(1-0.3*math.sin(2*math.pi*OutRate)))
+			end
+
+		elseif Enshutsu == 8 then -- 左上から拡大
+
+			if InRate <= 1 then
+				obj.ox = obj.ox - (BufferW/2-KW) * (1 - InRate*(1+0.4*math.sin(math.pi*InRate)))
+				obj.oy = obj.oy - (BufferH/2-KW) * (1 - InRate*(1+0.4*math.sin(math.pi*InRate)))
+				obj.zoom = obj.zoom * InRate*(1+0.4*math.sin(math.pi*InRate))
+			elseif OutRate <= 1 then
+				obj.ox = obj.ox - (BufferW/2-KW) * (1 - OutRate*(1+0.4*math.sin(math.pi*OutRate)))
+				obj.oy = obj.oy - (BufferH/2-KW) * (1 - OutRate*(1+0.4*math.sin(math.pi*OutRate)))
+				obj.zoom = obj.zoom * OutRate*(1+0.4*math.sin(math.pi*OutRate))
+			end
+
+		elseif Enshutsu == 9 then -- 自転
+
+			if InRate <= 1 then
+				obj.rx = -90 * (1 - InRate*(1-0.4*math.sin(2*math.pi*InRate)))
+			elseif OutRate <= 1 then
+				obj.rx = 90 * (1 - OutRate*(1-0.4*math.sin(2*math.pi*OutRate)))
+			end
+
+		elseif Enshutsu == 10 then -- 拡大自転
+
+			if InRate <= 1 then
+				obj.zoom = obj.zoom * InRate*(1+0.4*math.sin(math.pi*InRate))
+				obj.rx = -90 * (1 - InRate*(1-0.4*math.sin(2*math.pi*InRate)))
+			elseif OutRate <= 1 then
+				obj.zoom = obj.zoom * OutRate*(1+0.4*math.sin(math.pi*OutRate))
+				obj.rx = 90 * (1 - OutRate*(1-0.4*math.sin(2*math.pi*OutRate)))
+			end
+
+		elseif Enshutsu == 11 then -- 拡大自転＋左→右
+
+			if InRate <= 1 then
+				obj.zoom = obj.zoom * InRate*(1+0.4*math.sin(math.pi*InRate))
+				obj.rx = -90 * (1 - InRate*(1-0.4*math.sin(2*math.pi*InRate)))
+				obj.ox = obj.ox - 200 * (1-InRate*(1+0.4*math.sin(math.pi*InRate)))
+			elseif OutRate <= 1 then
+				obj.zoom = obj.zoom * OutRate*(1+0.4*math.sin(math.pi*OutRate))
+				obj.rx = 90 * (1 - OutRate*(1-0.4*math.sin(2*math.pi*OutRate)))
+				obj.ox = obj.ox + 200 * (1-OutRate*(1+0.4*math.sin(math.pi*OutRate)))
+			end
+
+		elseif Enshutsu == 12 then -- 起き上がり＋左→右
+
+			if InRate <= 1 then
+				obj.rx = -90 * (1 - InRate*(1-0.4*math.sin(2*math.pi*InRate)))
+				obj.ox = obj.ox - 200 * (1-InRate*(1+0.4*math.sin(math.pi*InRate)))
+				obj.oy = obj.oy + 100 * (1-InRate*(1+0.4*math.sin(math.pi*InRate)))
+			elseif OutRate <= 1 then
+				obj.rx = -90 * (1 - OutRate*(1-0.4*math.sin(2*math.pi*OutRate)))
+				obj.ox = obj.ox + 200 * (1-OutRate*(1+0.4*math.sin(math.pi*OutRate)))
+				obj.oy = obj.oy + 100 * (1-OutRate*(1+0.4*math.sin(math.pi*OutRate)))
+			end
+
+		end
+
+	else -- 後表示テキストの演出
+
+		if Enshutsu >= 1 then --共通：フェード
+
+			if InRate <= 1 then
+				if InRate >= 0 then
+					obj.alpha = InRate*(1+0.4*math.sin(math.pi*InRate))
+				else
+					obj.alpha = 0
+				end
+			elseif OutRate <= 1 then
+				if OutRate >= 0 then
+					obj.alpha = OutRate*(1+0.4*math.sin(math.pi*OutRate))
+				else
+					obj.alpha = 0
+				end
+			end
+
+		end
+
+	end
+
+end
+
+-- トラックバーの値を変数に代入
+ToujouEnshutsu = obj.track0
+TaijouEnshutsu = obj.track1
+SashieNumber = obj.track2
+SashieZoom = obj.track3
+
+-- 設定から演出速度を取得
+EnshutsuSokudo = ES*10
+
+-- 挿絵のアンカーポイント
+if SashieNumber >= 1 then
+
+	obj.setanchor("Pos",1)
+	SashieX = math.floor(Pos[1])
+	SashieY = math.floor(Pos[2])
+
+end
+
+EW = EW + 1 --エッジを外暗線分だけ+1
+
+-- 幅と高さを偶数で取得
+Haba = math.max(PlateW+PlateW%2,obj.w+obj.w%2+2*Yohaku)
+Takasa = math.max(PlateH+PlateH%2,obj.h+obj.h%2+2*Yohaku)
+
+-- 仮想バッファの幅と高さ
+BufferW = Haba + 2*KW + 16 -- +16は枠一定拡大演出で使う予備幅
+BufferH = Takasa + 2*KW + 16
+
+-- 描画先を仮想バッファに変更
+obj.setoption("drawtarget","tempbuffer",BufferW,2*BufferH)
+
+-- テキストを仮想バッファ上領域に退避
+obj.draw(-Haba/2+obj.w/2+Yohaku,-Takasa/2+obj.h/2+Yohaku-BufferH/2)
+obj.alpha = 0 -- 最背面になる元のテキストを消す
+
+-- プレート表示がONの場合のみ、仮想バッファに描画
+if PV == 1 then
+
+	-- 面の描画
+	if TextureNumber > 0 then -- テクスチャ有り
+
+		obj.load(CHARA_SOZAI.."小道具\\テクスチャ\\"..string.format("%02d",TextureNumber)..".png")
+		obj.effect("クリッピング","上",(obj.h-Takasa)/2,"下",(obj.h-Takasa)/2,"左",(obj.w-Haba)/2,"右",(obj.w-Haba)/2)
+		obj.effect("色調補正","色相",Shikisou,"彩度",Saido,"明るさ",Akarusa)
+		obj.draw(0,BufferH/2,0,1,1-(Garasudo/100))
+
+	else -- テクスチャなし
+
+		obj.load("四角形",0xaaaaff,2)
+		obj.effect("色調補正","色相",Shikisou,"彩度",Saido,"明るさ",Akarusa)
+		obj.drawpoly(-Haba/2,-Takasa/2+BufferH/2,0,Haba/2,-Takasa/2+BufferH/2,0,Haba/2,Takasa/2+BufferH/2,0,-Haba/2,Takasa/2+BufferH/2,0,0,0,0,0,0,0,0,0,1-(Garasudo/100))
+
+	end
+
+	-- 挿絵の描画
+	if SashieNumber > 0 then
+
+		obj.load(SASHIE_FOLDER..string.format("%02d",SashieNumber)..".png")
+		obj.effect("マスク","X",(-SashieX+(obj.w%2)/2)/(SashieZoom/100),"Y",(-SashieY+(obj.h%2)/2)/(SashieZoom/100),"サイズ",math.max(Haba,Takasa)/(SashieZoom/100),"縦横比",100*(Takasa-Haba)/math.max(Haba,Takasa))
+		obj.draw(SashieX-(obj.w%2)/2,SashieY-(obj.h%2)/2+BufferH/2,0,SashieZoom/100,1-SA/100)
+
+	end
+
+	-- プレートエッジの描画
+	if EW >= 1 then
+		obj.load("四角形",0xffffff,2)
+		obj.drawpoly(-Haba/2,-Takasa/2+BufferH/2,0,Haba/2,-Takasa/2+BufferH/2,0,Haba/2-EW,-Takasa/2+EW+BufferH/2,0,-Haba/2+EW,-Takasa/2+EW+BufferH/2,0,0,0,0,0,0,0,0,0,0.4) -- 上
+		obj.drawpoly(-Haba/2,-Takasa/2+BufferH/2,0,-Haba/2+EW,-Takasa/2+EW+BufferH/2,0,-Haba/2+EW,Takasa/2-EW+BufferH/2,0,-Haba/2,Takasa/2+BufferH/2,0,0,0,0,0,0,0,0,0,0.4) -- 左
+		obj.load("四角形",0x000000,2)
+		obj.drawpoly(-Haba/2+EW,Takasa/2-EW+BufferH/2,0,Haba/2-EW,Takasa/2-EW+BufferH/2,0,Haba/2,Takasa/2+BufferH/2,0,-Haba/2,Takasa/2+BufferH/2,0,0,0,0,0,0,0,0,0,0.4) -- 下
+		obj.drawpoly(Haba/2-EW,-Takasa/2+EW+BufferH/2,0,Haba/2,-Takasa/2+BufferH/2,0,Haba/2,Takasa/2+BufferH/2,0,Haba/2-EW,Takasa/2-EW+BufferH/2,0,0,0,0,0,0,0,0,0,0.4) -- 右
+	end
+
+	-- 影の描画
+	if KW >= 1 then 
+		obj.load("四角形",0x000000,2)
+		obj.drawpoly(-Haba/2,Takasa/2+BufferH/2,0,Haba/2,Takasa/2+BufferH/2,0,Haba/2+KW,Takasa/2+KW+BufferH/2,0,-Haba/2+KW,Takasa/2+KW+BufferH/2,0,0,0,0,0,0,0,0,0,0.6) -- 下
+		obj.drawpoly(Haba/2,-Takasa/2+BufferH/2,0,Haba/2+KW,-Takasa/2+KW+BufferH/2,0,Haba/2+KW,Takasa/2+KW+BufferH/2,0,Haba/2,Takasa/2+BufferH/2,0,0,0,0,0,0,0,0,0,0.6) -- 右
+	end
+
+	-- 暗線と明線の描画
+	if FW >= 1 then
+		obj.load("四角形",0x000000,2) -- 暗線
+		obj.drawpoly(-(Haba/2-FI),-(Takasa/2-FI)+BufferH/2,0,(Haba/2-FI),-(Takasa/2-FI)+BufferH/2,0,(Haba/2-FI)-(FW+2),-(Takasa/2-FI)+(FW+2)+BufferH/2,0,-(Haba/2-FI)+(FW+2),-(Takasa/2-FI)+(FW+2)+BufferH/2,0) -- 上
+		obj.drawpoly(-(Haba/2-FI)+(FW+2),(Takasa/2-FI)-(FW+2)+BufferH/2,0,(Haba/2-FI)-(FW+2),(Takasa/2-FI)-(FW+2)+BufferH/2,0,(Haba/2-FI),(Takasa/2-FI)+BufferH/2,0,-(Haba/2-FI),(Takasa/2-FI)+BufferH/2,0) -- 下
+		obj.drawpoly(-(Haba/2-FI),-(Takasa/2-FI)+BufferH/2,0,-(Haba/2-FI)+(FW+2),-(Takasa/2-FI)+(FW+2)+BufferH/2,0,-(Haba/2-FI)+(FW+2),(Takasa/2-FI)-(FW+2)+BufferH/2,0,-(Haba/2-FI),(Takasa/2-FI)+BufferH/2,0) -- 左
+		obj.drawpoly((Haba/2-FI)-(FW+2),-(Takasa/2-FI)+(FW+2)+BufferH/2,0,(Haba/2-FI),-(Takasa/2-FI)+BufferH/2,0,(Haba/2-FI),(Takasa/2-FI)+BufferH/2,0,(Haba/2-FI)-(FW+2),(Takasa/2-FI)-(FW+2)+BufferH/2,0) -- 右
+
+		obj.load("四角形",FC,2) -- 明線
+		obj.drawpoly(-(Haba/2-FI-1),-(Takasa/2-FI-1)+BufferH/2,0,(Haba/2-FI-1),-(Takasa/2-FI-1)+BufferH/2,0,(Haba/2-FI-1)-FW,-(Takasa/2-FI-1)+FW+BufferH/2,0,-(Haba/2-FI-1)+FW,-(Takasa/2-FI-1)+FW+BufferH/2,0) -- 上
+		obj.drawpoly(-(Haba/2-FI-1)+FW,(Takasa/2-FI-1)-FW+BufferH/2,0,(Haba/2-FI-1)-FW,(Takasa/2-FI-1)-FW+BufferH/2,0,(Haba/2-FI-1),(Takasa/2-FI-1)+BufferH/2,0,-(Haba/2-FI-1),(Takasa/2-FI-1)+BufferH/2,0) -- 下
+		obj.drawpoly(-(Haba/2-FI-1),-(Takasa/2-FI-1)+BufferH/2,0,-(Haba/2-FI-1)+FW,-(Takasa/2-FI-1)+FW+BufferH/2,0,-(Haba/2-FI-1)+FW,(Takasa/2-FI-1)-FW+BufferH/2,0,-(Haba/2-FI-1),(Takasa/2-FI-1)+BufferH/2,0) -- 左
+		obj.drawpoly((Haba/2-FI-1)-FW,-(Takasa/2-FI-1)+FW+BufferH/2,0,(Haba/2-FI-1),-(Takasa/2-FI-1)+BufferH/2,0,(Haba/2-FI-1),(Takasa/2-FI-1)+BufferH/2,0,(Haba/2-FI-1)-FW,(Takasa/2-FI-1)-FW+BufferH/2,0) -- 右
+	end
+
+	-- ラインエッジの描画
+	if FW >= 3 then
+		obj.load("四角形",0xffffff,2) -- 凸
+		obj.drawpoly(-(Haba/2-(FI+1)),-(Takasa/2-(FI+1))+BufferH/2,0,(Haba/2-(FI+1)),-(Takasa/2-(FI+1))+BufferH/2,0,(Haba/2-(FI+1))-1,-(Takasa/2-(FI+1))+1+BufferH/2,0,-(Haba/2-(FI+1))+1,-(Takasa/2-(FI+1))+1+BufferH/2,0,0,0,0,0,0,0,0,0,0.4) -- 上
+		obj.drawpoly(-(Haba/2-(FI+1)),-(Takasa/2-(FI+1))+BufferH/2,0,-(Haba/2-(FI+1))+1,-(Takasa/2-(FI+1))+1+BufferH/2,0,-(Haba/2-(FI+1))+1,(Takasa/2-(FI+1))-1+BufferH/2,0,-(Haba/2-(FI+1)),(Takasa/2-(FI+1))+BufferH/2,0,0,0,0,0,0,0,0,0,0.4) -- 左
+		obj.load("四角形",0x000000,2) -- 凸
+		obj.drawpoly(-(Haba/2-(FI+1))+1,(Takasa/2-(FI+1))-1+BufferH/2,0,(Haba/2-(FI+1))-1,(Takasa/2-(FI+1))-1+BufferH/2,0,(Haba/2-(FI+1)),(Takasa/2-(FI+1))+BufferH/2,0,-(Haba/2-(FI+1)),(Takasa/2-(FI+1))+BufferH/2,0,0,0,0,0,0,0,0,0,0.4) -- 下
+		obj.drawpoly((Haba/2-(FI+1))-1,-(Takasa/2-(FI+1))+1+BufferH/2,0,(Haba/2-(FI+1)),-(Takasa/2-(FI+1))+BufferH/2,0,(Haba/2-(FI+1)),(Takasa/2-(FI+1))+BufferH/2,0,(Haba/2-(FI+1))-1,(Takasa/2-(FI+1))-1+BufferH/2,0,0,0,0,0,0,0,0,0,0.4) -- 右
+		obj.load("四角形",0x000000,2) -- 凹
+		obj.drawpoly(-(Haba/2-FI-FW),-(Takasa/2-FI-FW)+BufferH/2,0,(Haba/2-FI-FW),-(Takasa/2-FI-FW)+BufferH/2,0,(Haba/2-FI-FW)-1,-(Takasa/2-FI-FW)+1+BufferH/2,0,-(Haba/2-FI-FW)+1,-(Takasa/2-FI-FW)+1+BufferH/2,0,0,0,0,0,0,0,0,0,0.4) -- 上
+		obj.drawpoly(-(Haba/2-FI-FW),-(Takasa/2-FI-FW)+BufferH/2,0,-(Haba/2-FI-FW)+1,-(Takasa/2-FI-FW)+1+BufferH/2,0,-(Haba/2-FI-FW)+1,(Takasa/2-FI-FW)-1+BufferH/2,0,-(Haba/2-FI-FW),(Takasa/2-FI-FW)+BufferH/2,0,0,0,0,0,0,0,0,0,0.4) -- 左
+		obj.load("四角形",0xffffff,2) -- 凹
+		obj.drawpoly(-(Haba/2-FI-FW)+1,(Takasa/2-FI-FW)-1+BufferH/2,0,(Haba/2-FI-FW)-1,(Takasa/2-FI-FW)-1+BufferH/2,0,(Haba/2-FI-FW),(Takasa/2-FI-FW)+BufferH/2,0,-(Haba/2-FI-FW),(Takasa/2-FI-FW)+BufferH/2,0,0,0,0,0,0,0,0,0,0.4) -- 下
+		obj.drawpoly((Haba/2-FI-FW)-1,-(Takasa/2-FI-FW)+1+BufferH/2,0,(Haba/2-FI-FW),-(Takasa/2-FI-FW)+BufferH/2,0,(Haba/2-FI-FW),(Takasa/2-FI-FW)+BufferH/2,0,(Haba/2-FI-FW)-1,(Takasa/2-FI-FW)-1+BufferH/2,0,0,0,0,0,0,0,0,0,0.4) -- 右
+	end
+
+	-- 外暗線の描画
+	obj.load("四角形",0x000000,2)
+	obj.drawpoly(-Haba/2,-Takasa/2+BufferH/2,0,Haba/2,-Takasa/2+BufferH/2,0,Haba/2-1,-Takasa/2+1+BufferH/2,0,-Haba/2+1,-Takasa/2+1+BufferH/2,0) -- 上
+	obj.drawpoly(-Haba/2+1,Takasa/2-1+BufferH/2,0,Haba/2-1,Takasa/2-1+BufferH/2,0,Haba/2,Takasa/2+BufferH/2,0,-Haba/2,Takasa/2+BufferH/2,0) -- 下
+	obj.drawpoly(-Haba/2,-Takasa/2+BufferH/2,0,-Haba/2+1,-Takasa/2+1+BufferH/2,0,-Haba/2+1,Takasa/2-1+BufferH/2,0,-Haba/2,Takasa/2+BufferH/2,0) -- 左
+	obj.drawpoly(Haba/2-1,-Takasa/2+1+BufferH/2,0,Haba/2,-Takasa/2+BufferH/2,0,Haba/2,Takasa/2+BufferH/2,0,Haba/2-1,Takasa/2-1+BufferH/2,0) -- 右
+
+end
+
+-- 描画先をフレームバッファに変更
+obj.setoption("drawtarget","framebuffer")
+
+-- 統合したプレート画像の描画
+obj.load("tempbuffer",0,BufferH,BufferW,BufferH)
+PlateEnshutsu(0) -- プレートに対し演出を適用
+obj.draw()
+
+-- プレートが非表示の場合の、挿絵の描画
+if SashieNumber > 0 and PV == 0 then
+
+	obj.load(SASHIE_FOLDER..string.format("%02d",SashieNumber)..".png")
+	PlateEnshutsu(0) -- 挿絵に対し演出を適用
+	obj.draw(SashieX-(obj.w%2)/2,SashieY-(obj.h%2)/2,0,SashieZoom/100,1-SA/100)
+
+end
+
+-- 退避していたテキストを最前面に描画
+if TV == 1 then
+	obj.load("tempbuffer",0,0,BufferW,BufferH)
+	PlateEnshutsu(1) -- テキストに対し演出を適用
+	obj.draw()
+end
+
+
+------------------------------------------------------------
+@ウィンドウ１
+------------------------------------------------------------
+--track0:色相,0,360,0
+--track1:彩度,0,200,100
+--track2:明るさ,0,200,100
+--track3:ガラス度,0,100,0
+
+-- プレート２に渡す為、トラックバーの値を変数に代入
+Shikisou = obj.track0
+Saido = obj.track1
+Akarusa = obj.track2
+Garasudo = obj.track3
+
+
+------------------------------------------------------------
+@ウィンドウ２
+------------------------------------------------------------
+--dialog:幅[pixel],WW=432;高さ[pixel],WH=80;可変枠の色/col,WC=0xffffff;台詞主の表示/chk,SV=1;字幕と連動/chk,GR=1;台詞主フォント,SF="メイリオ";台詞主サイズ,SS=16;台詞主太字/chk,SB=1;台詞主カラー/col,SC=0xffffff;挿絵の拡大率,SZ=100;挿絵の透明度,SA=50;演出速度,ES=30;アンカーポイント,Pos={-190,-38,-200,-12,160,0};
+--track0:演出,0,6,0,1
+--track1:ウィンドウ,0,【ウィンドウの上限】,1,1
+--track2:挿絵,0,99,1,1
+--track3:テクスチャ,0,【テクスチャの上限】,1,1
+
+-- フォルダパスを定数で定義
+CHARA_SOZAI = "【キャラ素材フォルダ】"
+SASHIE_FOLDER = "【挿絵フォルダ】"
+
+-- トラックバーの値を変数に代入
+Enshutsu = obj.track0
+WindowNumber = obj.track1
+SashieNumber = obj.track2
+TextureNumber = obj.track3
+
+-- 字幕オブジェクトに渡す為、台詞主サイズを変数に代入
+SerifunushiFont = SF
+SerifunushiSize = SS
+SerifunushiBold = SB
+SerifunushiColor = SC
+
+-- 字幕オブジェクトに渡すフラグ
+SerifunushiHyoujiFlag = SV
+JimakuRendouFlag = GR
+
+-- 設定から演出速度を取得
+EnshutsuSokudo = ES*10
+
+-- 元からあるテキストの非表示
+obj.alpha = 0
+
+AnchorCount = 0 -- アンカーポイントをいくつ設置したかを記憶
+
+-- 台詞主のアンカーポイント
+if SV == 1 then
+
+	-- アンカーポイントを追加
+	obj.setanchor("Pos",AnchorCount+1)
+
+	-- 字幕オブジェクトにアンカー位置を渡す為、変数に代入
+	SerifuX = math.floor(Pos[2*AnchorCount+1]*obj.getvalue("zoom")/100) + obj.x
+	SerifuY = math.floor(Pos[2*AnchorCount+2]*obj.getvalue("zoom")/100) + obj.y
+
+	AnchorCount = AnchorCount + 1
+
+end
+
+-- 字幕のアンカーポイント
+if GR == 1 then 
+
+	-- アンカーポイントを追加
+	obj.setanchor("Pos",AnchorCount+1)
+
+	-- 字幕オブジェクトにアンカー位置を渡す為、変数に代入
+	JimakuX = math.floor(Pos[2*AnchorCount+1]*obj.getvalue("zoom")/100) + obj.x
+	JimakuY = math.floor(Pos[2*AnchorCount+2]*obj.getvalue("zoom")/100) + obj.y
+
+	AnchorCount = AnchorCount + 1
+
+end
+
+-- 挿絵のアンカーポイント
+SashieX = 0
+SashieY = 0
+if SashieNumber > 0 then
+
+	-- アンカーポイントを追加
+	obj.setanchor("Pos",AnchorCount+1)
+
+	-- 変数に代入
+	SashieX = Pos[2*AnchorCount+1]
+	SashieY = Pos[2*AnchorCount+2]
+
+	AnchorCount = AnchorCount + 1
+
+end
+
+-- 可変枠かどうかで場合分け
+FilePass = CHARA_SOZAI.."小道具\\ウィンドウ\\可変枠\\"..string.format("%02d",WindowNumber).."a.png"
+if os.rename(FilePass,FilePass) ~= nil then -- 可変枠の場合
+
+	-- 面の幅と高さを偶数で取得
+	Haba = math.floor(WW) + math.floor(WW) % 2
+	Takasa = math.floor(WH) + math.floor(WH) % 2
+
+	-- 幅と高さの変更演出
+	if Enshutsu == 4 then -- 幅変更
+
+		InRate = obj.time / (100/EnshutsuSokudo)
+		OutRate = (obj.totaltime - obj.time) / (100/EnshutsuSokudo)
+
+		if InRate <= 1 then
+			Haba = Haba * (0.1+0.9*InRate*(1+0.3*math.sin(math.pi*InRate)))
+		elseif OutRate <= 1 then
+			Haba = Haba * (0.1+0.9*OutRate*(1+0.3*math.sin(math.pi*OutRate)))
+		end
+
+	elseif Enshutsu == 5 then -- 高さ変更
+
+		InRate = obj.time / (100/EnshutsuSokudo)
+		OutRate = (obj.totaltime - obj.time) / (100/EnshutsuSokudo)
+
+		if InRate <= 1 then
+			Takasa = Takasa * (0.1+0.9*InRate*(1+0.3*math.sin(math.pi*InRate)))
+		elseif OutRate <= 1 then
+			Takasa = Takasa * (0.1+0.9*OutRate*(1+0.3*math.sin(math.pi*OutRate)))
+		end
+
+	elseif Enshutsu == 6 then -- 幅と高さ変更
+
+		InRate = obj.time / (100/EnshutsuSokudo)
+		OutRate = (obj.totaltime - obj.time) / (100/EnshutsuSokudo)
+
+		if InRate <= 1 then
+			Haba = Haba * (0.1+0.9*InRate*(1+0.3*math.sin(math.pi*InRate)))
+			Takasa = Takasa * (0.1+0.9*InRate*(1+0.3*math.sin(math.pi*InRate)))
+		elseif OutRate <= 1 then
+			Haba = Haba * (0.1+0.9*OutRate*(1+0.3*math.sin(math.pi*OutRate)))
+			Takasa = Takasa * (0.1+0.9*OutRate*(1+0.3*math.sin(math.pi*OutRate)))
+		end
+
+	end
+
+	-- 面とワンポイントの描画は仮想バッファ
+	obj.setoption("drawtarget","tempbuffer",Haba+160,Takasa+160)
+
+	-- 面の描画
+	if TextureNumber > 0 then -- テクスチャ有り
+
+		obj.load(CHARA_SOZAI.."小道具\\テクスチャ\\"..string.format("%02d",TextureNumber)..".png")
+		obj.effect("クリッピング","上",(obj.h-Takasa)/2,"下",(obj.h-Takasa)/2,"左",(obj.w-Haba)/2,"右",(obj.w-Haba)/2)
+		obj.effect("色調補正","色相",Shikisou,"彩度",Saido,"明るさ",Akarusa)
+		obj.draw(0,0,0,1,1-Garasudo/100)
+
+	else -- テクスチャなし
+
+		obj.load("四角形",0xaaaaff,2)
+		obj.effect("色調補正","色相",Shikisou,"彩度",Saido,"明るさ",Akarusa)
+		obj.drawpoly(-Haba/2,-Takasa/2,0,Haba/2,-Takasa/2,0,Haba/2,Takasa/2,0,-Haba/2,Takasa/2,0,0,0,0,0,0,0,0,0,1-Garasudo/100)
+
+	end
+
+	-- 挿絵の描画
+	if SashieNumber > 0 then
+
+		obj.load(SASHIE_FOLDER..string.format("%02d",SashieNumber)..".png")
+		obj.effect("マスク","X",(-SashieX+(obj.w%2)/2)/(SZ/100),"Y",(-SashieY+(obj.h%2)/2)/(SZ/100),"サイズ",math.max(Haba,Takasa)/(SZ/100),"縦横比",100*(Takasa-Haba)/math.max(Haba,Takasa))
+		obj.draw(SashieX-(obj.w%2)/2,SashieY-(obj.h%2)/2,0,SZ/100,1-SA/100)
+
+	end
+
+	-- 可変枠の角のサイズを記憶する配列の初期化
+	KadoSize = {}
+
+	-- 可変枠（左上）の描画
+	obj.load(CHARA_SOZAI.."小道具\\ウィンドウ\\可変枠\\"..string.format("%02d",WindowNumber).."a.png")
+	KadoSize[1] = obj.w
+	KadoSize[2] = obj.h
+	obj.effect("単色化","強さ",50,"color",WC)
+	obj.draw(-Haba/2,-Takasa/2)
+
+	-- 可変枠（右上）の描画
+	obj.load(CHARA_SOZAI.."小道具\\ウィンドウ\\可変枠\\"..string.format("%02d",WindowNumber).."c.png")
+	KadoSize[3] = obj.w
+	KadoSize[4] = obj.h
+	obj.effect("単色化","強さ",50,"color",WC)
+	obj.draw(Haba/2,-Takasa/2)
+
+	-- 可変枠（左下）の描画
+	obj.load(CHARA_SOZAI.."小道具\\ウィンドウ\\可変枠\\"..string.format("%02d",WindowNumber).."f.png")
+	KadoSize[5] = obj.w
+	KadoSize[6] = obj.h
+	obj.effect("単色化","強さ",50,"color",WC)
+	obj.draw(-Haba/2,Takasa/2)
+
+	-- 可変枠（右下）の描画
+	obj.load(CHARA_SOZAI.."小道具\\ウィンドウ\\可変枠\\"..string.format("%02d",WindowNumber).."h.png")
+	KadoSize[7] = obj.w
+	KadoSize[8] = obj.h
+	obj.effect("単色化","強さ",50,"color",WC)
+	obj.draw(Haba/2,Takasa/2)
+
+	-- 可変枠（上辺）の描画
+	obj.load(CHARA_SOZAI.."小道具\\ウィンドウ\\可変枠\\"..string.format("%02d",WindowNumber).."b.png")
+	obj.effect("単色化","強さ",50,"color",WC)
+	DrawX = -(Haba/2 - KadoSize[1]/2) + obj.w/2
+	while DrawX - obj.w/2 < Haba/2  - KadoSize[3]/2 do
+		ClipX = 0
+		if DrawX + obj.w/2 > Haba/2  - KadoSize[3]/2 then
+			ClipX = DrawX + obj.w/2 - Haba/2 + KadoSize[3]/2
+			obj.effect("クリッピング","右",ClipX)
+		end
+		obj.draw(DrawX-ClipX/2,-Takasa/2)
+		DrawX = DrawX + obj.w
+	end
+
+	-- 可変枠（左辺）の描画
+	obj.load(CHARA_SOZAI.."小道具\\ウィンドウ\\可変枠\\"..string.format("%02d",WindowNumber).."d.png")
+	obj.effect("単色化","強さ",50,"color",WC)
+	DrawY = -(Takasa/2 - KadoSize[2]/2) + obj.h/2
+	while DrawY - obj.h/2 < Takasa/2 - KadoSize[6]/2 do
+		ClipY = 0
+		if DrawY + obj.h/2 > Takasa/2 - KadoSize[6]/2 then
+			ClipY = DrawY + obj.h/2 - Takasa/2 + KadoSize[6]/2
+			obj.effect("クリッピング","下",ClipY)
+		end
+		obj.draw(-Haba/2,DrawY-ClipY/2)
+		DrawY = DrawY + obj.h
+	end
+
+	-- 可変枠（右辺）の描画
+	obj.load(CHARA_SOZAI.."小道具\\ウィンドウ\\可変枠\\"..string.format("%02d",WindowNumber).."e.png")
+	obj.effect("単色化","強さ",50,"color",WC)
+	DrawY = -(Takasa/2 - KadoSize[4]/2) + obj.h/2
+	while DrawY - obj.h/2 < Takasa/2 - KadoSize[8]/2 do
+		ClipY = 0
+		if DrawY + obj.h/2 > Takasa/2 - KadoSize[8]/2 then
+			ClipY = DrawY + obj.h/2 - Takasa/2 + KadoSize[8]/2
+			obj.effect("クリッピング","下",ClipY)
+		end
+		obj.draw(Haba/2,DrawY-ClipY/2)
+		DrawY = DrawY + obj.h
+	end
+
+	-- 可変枠（下辺）の描画
+	obj.load(CHARA_SOZAI.."小道具\\ウィンドウ\\可変枠\\"..string.format("%02d",WindowNumber).."g.png")
+	obj.effect("単色化","強さ",50,"color",WC)
+	DrawX = -(Haba/2 - KadoSize[5]/2) + obj.w/2
+	while DrawX - obj.w/2 < Haba/2 - KadoSize[7]/2 do
+		ClipX = 0
+		if DrawX + obj.w/2 > Haba/2 - KadoSize[7]/2 then
+			ClipX = DrawX + obj.w/2 - Haba/2 + KadoSize[7]/2
+			obj.effect("クリッピング","右",ClipX)
+		end
+		obj.draw(DrawX-ClipX/2,Takasa/2)
+		DrawX = DrawX + obj.w
+	end
+
+	-- 描画先をフレームバッファに
+	obj.setoption("drawtarget","framebuffer")
+
+	-- 仮想バッファから、統合した可変枠ウィンドウの読み込み
+	obj.load("tempbuffer")
+
+	-- 可変枠ウィンドウに登場・退場演出を適用
+	if Enshutsu == 1 then -- フェード
+
+		InRate = obj.time / (100/EnshutsuSokudo)
+		OutRate = (obj.totaltime - obj.time) / (100/EnshutsuSokudo)
+
+		if InRate <= 1 then
+			obj.alpha = obj.alpha * InRate*(1+0.3*math.sin(math.pi*InRate))
+		elseif OutRate <= 1 then
+			obj.alpha = obj.alpha * OutRate*(1+0.3*math.sin(math.pi*OutRate))
+		end
+
+	elseif Enshutsu == 2 then -- 左から登場、右へ退場
+
+		InRate = obj.time / (300/EnshutsuSokudo)
+		OutRate = (obj.totaltime - obj.time) / (300/EnshutsuSokudo)
+
+		if InRate <= 1 then
+			obj.alpha = obj.alpha * InRate*(1+0.3*math.sin(math.pi*InRate))
+			obj.ox = -300 * (1 - InRate*(1-0.3*math.sin(2*math.pi*InRate)))
+		elseif OutRate <= 1 then
+			obj.alpha = obj.alpha * OutRate*(1+0.3*math.sin(math.pi*OutRate))
+			obj.ox = 300 * (1 - OutRate*(1-0.3*math.sin(2*math.pi*OutRate)))
+		end
+
+	elseif Enshutsu == 3 then -- 下から登場、下へ退場
+
+		InRate = obj.time / (150/EnshutsuSokudo)
+		OutRate = (obj.totaltime - obj.time) / (150/EnshutsuSokudo)
+
+		if InRate <= 1 then
+			obj.alpha = obj.alpha * InRate*(1+0.3*math.sin(math.pi*InRate))
+			obj.oy = 150 * (1 - InRate*(1-0.3*math.sin(2*math.pi*InRate)))
+		elseif OutRate <= 1 then
+			obj.alpha = obj.alpha * OutRate*(1+0.3*math.sin(math.pi*OutRate))
+			obj.oy = 150 * (1 - OutRate*(1-0.3*math.sin(2*math.pi*OutRate)))
+		end
+
+	elseif Enshutsu >= 4 then -- 幅と高さ変更用フェード
+
+		InRate = obj.time / (100/EnshutsuSokudo)
+		OutRate = (obj.totaltime - obj.time) / (100/EnshutsuSokudo)
+
+		if InRate <= 1 then
+			obj.alpha = obj.alpha * InRate*(1+0.3*math.sin(math.pi*InRate))
+		elseif OutRate <= 1 then
+			obj.alpha = obj.alpha * OutRate*(1+0.3*math.sin(math.pi*OutRate))
+		end
+
+	end
+
+	-- 可変枠ウィンドウの描画
+	obj.draw()
+
+	-- ウィンドウ掴み領域確保の為、仮想バッファから透明画像を読み込み
+	obj.setoption("drawtarget","tempbuffer",Haba,Takasa)
+	obj.load("tempbuffer")
+
+else
+
+	-- 固定枠ウィンドウを読み込み
+	obj.load(CHARA_SOZAI.."小道具\\ウィンドウ\\固定枠\\"..string.format("%02d",WindowNumber)..".png")
+
+	if Enshutsu == 1 then -- フェード
+
+		InRate = obj.time / (100/EnshutsuSokudo)
+		OutRate = (obj.totaltime - obj.time) / (100/EnshutsuSokudo)
+
+		if InRate <= 1 then
+			obj.alpha = obj.alpha * InRate*(1+0.3*math.sin(math.pi*InRate))
+		elseif OutRate <= 1 then
+			obj.alpha = obj.alpha * OutRate*(1+0.3*math.sin(math.pi*OutRate))
+		end
+
+	elseif Enshutsu == 2 then -- 左から登場、右へ退場
+
+		InRate = obj.time / (300/EnshutsuSokudo)
+		OutRate = (obj.totaltime - obj.time) / (300/EnshutsuSokudo)
+
+		if InRate <= 1 then
+			obj.alpha = obj.alpha * InRate*(1+0.3*math.sin(math.pi*InRate))
+			obj.ox = -300 * (1 - InRate*(1-0.3*math.sin(2*math.pi*InRate)))
+		elseif OutRate <= 1 then
+			obj.alpha = obj.alpha * OutRate*(1+0.3*math.sin(math.pi*OutRate))
+			obj.ox = 300 * (1 - OutRate*(1-0.3*math.sin(2*math.pi*OutRate)))
+		end
+
+	elseif Enshutsu == 3 then -- 下から登場、下へ退場
+
+		InRate = obj.time / (150/EnshutsuSokudo)
+		OutRate = (obj.totaltime - obj.time) / (150/EnshutsuSokudo)
+
+		if InRate <= 1 then
+			obj.alpha = obj.alpha * InRate*(1+0.3*math.sin(math.pi*InRate))
+			obj.oy = 150 * (1 - InRate*(1-0.3*math.sin(2*math.pi*InRate)))
+		elseif OutRate <= 1 then
+			obj.alpha = obj.alpha * OutRate*(1+0.3*math.sin(math.pi*OutRate))
+			obj.oy = 150 * (1 - OutRate*(1-0.3*math.sin(2*math.pi*OutRate)))
+		end
+
+	elseif Enshutsu == 4 then -- 幅変更
+
+		InRate = obj.time / (100/EnshutsuSokudo)
+		OutRate = (obj.totaltime - obj.time) / (100/EnshutsuSokudo)
+
+		if InRate <= 1 then
+			obj.aspect = 1 * (1 - InRate)
+			obj.alpha = obj.alpha * InRate*(1+0.3*math.sin(math.pi*InRate))
+		elseif OutRate <= 1 then
+			obj.aspect = 1 * (1 - OutRate)
+			obj.alpha = obj.alpha * OutRate*(1+0.3*math.sin(math.pi*OutRate))
+		end
+
+	elseif Enshutsu == 5 then -- 高さ変更
+
+		InRate = obj.time / (100/EnshutsuSokudo)
+		OutRate = (obj.totaltime - obj.time) / (100/EnshutsuSokudo)
+
+		if InRate <= 1 then
+			obj.aspect = -1 * (1 - InRate)
+			obj.alpha = obj.alpha * InRate*(1+0.3*math.sin(math.pi*InRate))
+		elseif OutRate <= 1 then
+			obj.aspect = -1 * (1 - OutRate)
+			obj.alpha = obj.alpha * OutRate*(1+0.3*math.sin(math.pi*OutRate))
+		end
+
+	elseif Enshutsu == 6 then -- 幅と高さ変更
+
+		InRate = obj.time / (100/EnshutsuSokudo)
+		OutRate = (obj.totaltime - obj.time) / (100/EnshutsuSokudo)
+
+		if InRate <= 1 then
+			obj.zoom = InRate
+			obj.alpha = obj.alpha * InRate*(1+0.4*math.sin(math.pi*InRate))
+		elseif OutRate <= 1 then
+			obj.zoom = OutRate
+			obj.alpha = obj.alpha * OutRate*(1+0.4*math.sin(math.pi*OutRate))
+		end
+
+	end
+
+	-- 色調補正を適用し、固定枠ウィンドウを描画
+	obj.effect("色調補正","色相",Shikisou,"彩度",Saido,"明るさ",Akarusa)
+	obj.draw()
+
+end
+
+
+------------------------------------------------------------
+@字幕１
+------------------------------------------------------------
+--track0:吹き出しX,-300,300,0,1
+--track1:吹き出しY,-300,300,0,1
+--track2:くちばしX,-100,100,0,1
+--track3:くちばしY,-100,100,0,1
+
+-- トラックバーの値を取得
+FukidashiX = obj.track0
+FukidashiY = obj.track1
+KuchibashiX = obj.track2
+KuchibashiY = obj.track3
+
+
+------------------------------------------------------------
+@字幕２
+------------------------------------------------------------
+--dialog:台詞主,SN="";吹き出し表示/chk,FD=0;
+--track0:余白,0,100,16,1
+--track1:角丸,0,100,32,1
+--track2:嘴太さ,2,50,16,1
+--track3:演出,0,2,2,1
+
+-- トラックバーの値を取得
+Yohaku = obj.track0
+Kadomaru = obj.track1
+KuchibashiFutosa = obj.track2
+Enshutsu = obj.track3
+
+-- ［設定］を取得
+Serifunushi = SN
+FukidashiHyouji = FD
+
+if FukidashiHyouji == 1 then -- 吹き出しを使用する場合
+
+	-- オブジェクト中心とアンカーポイントまでの距離と角度
+	KuchibashiLength = math.sqrt(KuchibashiX^2+KuchibashiY^2)
+	KuchibashiAngle = math.atan2(KuchibashiY,KuchibashiX)
+
+	-- 角丸四角形の幅と高さ
+	Haba = obj.w + obj.w%2 + 2*Yohaku
+	Takasa = obj.h + obj.h%2 + 2*Yohaku
+
+	-- 仮想バッファの縦横サイズ（字幕の退避と吹き出し画像の統合で使う広さを確保）
+	BufferW = math.max(Haba,2*math.abs(KuchibashiX))
+	BufferH = math.max(Takasa,2*math.abs(KuchibashiY))
+
+	-- 描画先を仮想バッファに変更
+	obj.setoption("drawtarget","tempbuffer",BufferW,3*BufferH)
+
+	-- 字幕を仮想バッファに退避して、非表示
+	obj.draw(-(obj.w%2)/2,-(obj.h%2)/2-BufferH)
+	obj.alpha = 0
+
+	-- 各角に円を描画
+	obj.load("円",0xffffff,Kadomaru+2)
+	obj.draw(-(Haba-Kadomaru)/2,-(Takasa-Kadomaru)/2) -- 左上
+	obj.draw((Haba-Kadomaru)/2,-(Takasa-Kadomaru)/2) -- 右上
+	obj.draw(-(Haba-Kadomaru)/2,(Takasa-Kadomaru)/2) -- 左下
+	obj.draw((Haba-Kadomaru)/2,(Takasa-Kadomaru)/2) -- 右下
+
+	-- 縦横に長方形を二つ描画
+	obj.load("四角形",0xffffff,2)
+	obj.drawpoly(-(Haba-Kadomaru)/2,-Takasa/2,0,(Haba-Kadomaru)/2,-Takasa/2,0,(Haba-Kadomaru)/2,Takasa/2,0,-(Haba-Kadomaru)/2,Takasa/2,0) -- 縦
+	obj.drawpoly(-Haba/2,-(Takasa-Kadomaru)/2,0,Haba/2,-(Takasa-Kadomaru)/2,0,Haba/2,(Takasa-Kadomaru)/2,0,-Haba/2,(Takasa-Kadomaru)/2,0) -- 横
+
+	-- くちばしの描画
+	obj.drawpoly(0,0,0,KuchibashiFutosa*math.cos(KuchibashiAngle+math.pi/3),KuchibashiFutosa*math.sin(KuchibashiAngle+math.pi/3),0,KuchibashiX,KuchibashiY,0,KuchibashiFutosa*math.cos(KuchibashiAngle-math.pi/3),KuchibashiFutosa*math.sin(KuchibashiAngle-math.pi/3),0)
+
+	-- 仮想バッファに退避しておいた字幕を描画
+	obj.load("tempbuffer",0,0,BufferW,BufferH)
+	obj.draw()
+
+	-- 描画先をフレームバッファに
+	obj.setoption("drawtarget","framebuffer")
+
+	-- 仮想バッファに統合した画像を読み込み
+	obj.load("tempbuffer",0,BufferH,BufferW,BufferH)
+
+	-- 登場と退場の演出を適用
+	if Enshutsu == 1 then --フェード
+
+		InRate = obj.time / 0.2
+		OutRate = (obj.totaltime - obj.time) / 0.2
+
+		if InRate <= 1 then
+			obj.alpha = obj.alpha * InRate*(1+0.4*math.sin(math.pi*InRate))
+		elseif OutRate <= 1 then
+			obj.alpha = obj.alpha * OutRate*(1+0.4*math.sin(math.pi*OutRate))
+		end
+
+	elseif Enshutsu == 2 then -- くちばしから拡大
+
+		InRate = obj.time / 0.2
+		OutRate = (obj.totaltime - obj.time) / 0.2
+
+		if InRate <= 1 then
+			obj.zoom = obj.zoom * InRate*(1-0.4*math.sin(math.pi*InRate))
+			obj.ox = obj.ox + KuchibashiX * (1 - InRate*(1-0.4*math.sin(math.pi*InRate)))
+			obj.oy = obj.oy + KuchibashiY * (1 - InRate*(1-0.4*math.sin(math.pi*InRate)))
+		elseif OutRate <= 1 then
+			obj.zoom = obj.zoom * OutRate*(1-0.4*math.sin(math.pi*OutRate))
+			obj.ox = obj.ox + KuchibashiX * (1 - OutRate*(1-0.4*math.sin(math.pi*OutRate)))
+			obj.oy = obj.oy + KuchibashiY * (1 - OutRate*(1-0.4*math.sin(math.pi*OutRate)))
+		end
+
+	end
+
+	-- エッジや影を適用
+	obj.effect("凸エッジ","幅",2,"高さ",1,"角度",-45)
+	obj.effect("シャドー","X",-1,"Y",-1,"拡散",1,"濃さ",70,"color",0x000000)
+	obj.effect("シャドー","X",2,"Y",2,"拡散",1,"濃さ",70,"color",0x000000)
+
+	-- 吹き出し位置を設定
+	obj.ox = obj.ox - obj.x + FukidashiX
+	obj.oy = obj.oy - obj.y + FukidashiY
+
+	-- 仮想バッファに統合した画像を描画
+	obj.draw()
+
+	-- ウィンドウ掴み領域確保の為、仮想バッファから何もない画像を描画
+	obj.setoption("drawtarget","tempbuffer",BufferW,BufferH)
+	obj.load("tempbuffer")
+	obj.draw()
+
+else -- 吹き出しを使用しない場合
+
+	--if JimakuX ~= nil then -- ウィンドウで字幕位置の再指定があれば
+	if JimakuRendouFlag == 1 or SerifunushiHyoujiFlag == 1 then -- ウィンドウで字幕連動がON、または台詞主の表示がONであれば
+
+		-- 仮想バッファの縦横サイズ
+		BufferW = obj.w + obj.w%2
+		BufferH = obj.h + obj.h%2
+
+		-- 仮想バッファに字幕を退避
+		obj.setoption("drawtarget","tempbuffer",BufferW,BufferH)
+		obj.draw(-(obj.w%2)/2,-(obj.h%2)/2)
+		
+		-- 元の字幕は消す
+		obj.alpha = 0
+
+		-- 描画先をフレームバッファに
+		obj.setoption("drawtarget","framebuffer")
+
+		-- 仮想バッファから読み込み
+		obj.load("tempbuffer")
+
+		-- 字幕の再指定のアンカーポイントが左上になるように描画
+		obj.draw(JimakuX + BufferW/2 - obj.x,JimakuY + BufferH/2 - obj.y)
+
+	end
+
+	if SerifunushiHyoujiFlag == 1 then -- ウィンドウで台詞主の表示があれば
+
+		-- フォントを設定
+		obj.setfont(SerifunushiFont,SerifunushiSize,1,SerifunushiColor)
+
+		-- 台詞主の描画
+		BoldString = ""
+		if SerifunushiBold == 1 then BoldString = "<s,,B>" end
+		obj.load("text",BoldString..Serifunushi)
+		obj.draw(SerifuX + obj.w/2 - obj.x,SerifuY + obj.h/2 - obj.y)
+
+	end
+
+end
+
+
+------------------------------------------------------------
+@矢印
+------------------------------------------------------------
+--dialog:開始幅[pixel],SW=10;終了幅[pixel],GW=20;矢幅[pixel],YW=40;矢高さ[pixel],YH=30;矢戻り[pixel],YM=6;ハーフ矢印[0-2],HY=0;基本色/col,BC=0x0000ff;グラデーション色/col,GC=0xaaaaff;縁幅１[pixel],FW1=1;縁色１/col,FC1=0xffffff;縁幅２[pixel],FW2=0;縁色２/col,FC2=0x0000ff;影幅[pixel],KW=2;演出速度,ES=20;アンカーポイント,Pos={-100,0,100,0};
+--track0:色相,0,360,0,1
+--track1:ｸﾞﾗﾃﾞｰｼｮﾝ,0,100,50,1
+--track2:エッジ幅,0,30,3,1
+--track3:演出,0,5,3,1
+
+-- 関数：矢印に演出を適用
+function YajirushiEnshutsu()
+
+	if obj.track3 > 0 then -- 演出が設定されていれば適用
+
+		if obj.track3 == 1 then -- フェード
+
+			InRate = obj.time / (100/EnshutsuSokudo)
+			OutRate = (obj.totaltime - obj.time) / (100/EnshutsuSokudo)
+
+			if InRate <= 1 then
+				obj.alpha = obj.alpha * InRate*(1+0.4*math.sin(math.pi*InRate))
+			elseif OutRate <= 1 then
+				obj.alpha = obj.alpha * OutRate*(1+0.4*math.sin(math.pi*OutRate))
+			end
+
+		elseif obj.track3 == 2 then -- フェード＆矢印の方向に移動
+
+			InRate = obj.time / (100/EnshutsuSokudo)
+			OutRate = (obj.totaltime - obj.time) / (100/EnshutsuSokudo)
+
+			if InRate <= 1 then
+				obj.alpha = obj.alpha * InRate*(1+0.4*math.sin(math.pi*InRate))
+			elseif OutRate <= 1 then
+				obj.alpha = obj.alpha * OutRate*(1+0.4*math.sin(math.pi*OutRate))
+			end
+
+			InRate = obj.time / (200/EnshutsuSokudo)
+			OutRate = (obj.totaltime - obj.time) / (200/EnshutsuSokudo)
+
+			if InRate <= 1 then
+				obj.ox = -200*math.cos(ArrowAngle) * (1 - InRate*(1+0.4*math.sin(math.pi*InRate)))
+				obj.oy = -200*math.sin(ArrowAngle) * (1 - InRate*(1+0.4*math.sin(math.pi*InRate)))
+			elseif OutRate <= 1 then
+				obj.ox = 200*math.cos(ArrowAngle) * (1 - OutRate*(1+0.4*math.sin(math.pi*OutRate)))
+				obj.oy = 200*math.sin(ArrowAngle) * (1 - OutRate*(1+0.4*math.sin(math.pi*OutRate)))
+			end
+
+		elseif obj.track3 == 3 then -- フェード＆伸縮
+
+			InRate = obj.time / (100/EnshutsuSokudo)
+			OutRate = (obj.totaltime - obj.time) / (100/EnshutsuSokudo)
+
+			if InRate <= 1 then
+				obj.alpha = obj.alpha * InRate*(1+0.4*math.sin(math.pi*InRate))
+			elseif OutRate <= 1 then
+				obj.alpha = obj.alpha * OutRate*(1+0.4*math.sin(math.pi*OutRate))
+			end
+
+			InRate = obj.time / (ArrowLength/EnshutsuSokudo)
+			OutRate = (obj.totaltime - obj.time) / (ArrowLength/EnshutsuSokudo)
+
+			if InRate <= 1 then
+				ShinsyukuRate  = InRate*(1+0.4*math.sin(math.pi*InRate))
+			elseif OutRate <= 1 then
+				ShinsyukuRate  = OutRate*(1+0.4*math.sin(math.pi*OutRate))
+			end
+
+		elseif obj.track3 == 4 then -- フェード＆繰り返し振動
+
+			InRate = obj.time / (100/EnshutsuSokudo)
+			OutRate = (obj.totaltime - obj.time) / (100/EnshutsuSokudo)
+			Rate = obj.time / (100/EnshutsuSokudo)
+
+			obj.ox = obj.ox + 3*math.cos(ArrowAngle)*math.sin(2*math.pi*Rate)
+			obj.oy = obj.oy + 3*math.sin(ArrowAngle)*math.sin(2*math.pi*Rate)
+
+			if InRate <= 1 then
+				obj.alpha = obj.alpha * InRate*(1+0.4*math.sin(math.pi*InRate))
+			elseif OutRate <= 1 then
+				obj.alpha = obj.alpha * OutRate*(1+0.4*math.sin(math.pi*OutRate))
+			end
+
+		elseif obj.track3 == 5 then -- フェード＆繰り返し伸縮
+
+			InRate = obj.time / (100/EnshutsuSokudo)
+			OutRate = (obj.totaltime - obj.time) / (100/EnshutsuSokudo)
+			Rate = obj.time / (100/EnshutsuSokudo)
+
+			ShinsyukuRate = ShinsyukuRate * (1+0.03*math.sin(2*math.pi*Rate))
+
+			if InRate <= 1 then
+				ShinsyukuRate = InRate
+				obj.alpha = obj.alpha * InRate*(1+0.4*math.sin(math.pi*InRate))
+			elseif OutRate <= 1 then
+				ShinsyukuRate = OutRate
+				obj.alpha = obj.alpha * OutRate*(1+0.4*math.sin(math.pi*OutRate))
+			end
+
+		end
+
+	end
+
+end
+
+-- 元からあるテキストの非表示
+obj.alpha = 0
+
+-- 設定から演出速度を取得
+EnshutsuSokudo = ES*10
+
+-- アンカーポイントを設置
+obj.setanchor("Pos",2)
+ArrowLength = math.sqrt((Pos[3]-Pos[1])^2+(Pos[4]-Pos[2])^2)
+ArrowAngle = math.atan2(Pos[4]-Pos[2],Pos[3]-Pos[1])
+
+-- 影幅の最適化
+KW = KW / math.cos(math.pi/4)
+
+-- 伸縮率の適用
+ShinsyukuRate = 1
+YajirushiEnshutsu() -- 演出を適用
+ArrowLength = ShinsyukuRate * ArrowLength
+YW = ((1-ShinsyukuRate)*SW/GW + ShinsyukuRate)*YW
+YH = ((1-ShinsyukuRate)*SW/GW + ShinsyukuRate)*YH
+YM = ((1-ShinsyukuRate)*SW/GW + ShinsyukuRate)*YM
+GW = ((1-ShinsyukuRate)*SW/GW + ShinsyukuRate)*GW
+
+-- 描画先を仮想バッファへ
+obj.setoption("drawtarget","tempbuffer",ArrowLength,YW)
+
+-- 矢印の描画
+obj.load("四角形",BC,2)
+obj.drawpoly(ArrowLength/2-YH+1,-GW/2,0,ArrowLength/2-YH+1,GW/2,0,-ArrowLength/2,SW/2,0,-ArrowLength/2,-SW/2,0) -- 矢印の柄部分
+obj.drawpoly(ArrowLength/2,0,0,ArrowLength/2-YH-YM,YW/2,0,ArrowLength/2-YH,0,0,ArrowLength/2-YH/2,-1,0) -- 矢印の矢部分
+obj.drawpoly(ArrowLength/2,0,0,ArrowLength/2-YH-YM,-YW/2,0,ArrowLength/2-YH,0,0,ArrowLength/2-YH/2,1,0) -- 矢印の矢部分
+
+-- 描画先をフレームバッファに
+obj.setoption("drawtarget","framebuffer")
+
+-- 矢印を仮想バッファから読み込み、角度を付け、フィルタをかけて描画
+obj.load("tempbuffer")
+
+YajirushiEnshutsu() -- 演出を適用
+
+obj.ox = obj.ox + Pos[1] * obj.getvalue("zoom")/100
+obj.oy = obj.oy + Pos[2] * obj.getvalue("zoom")/100
+obj.cx = -ArrowLength/2
+obj.rz = math.deg(ArrowAngle)
+if HY == 1 then obj.effect("斜めクリッピング","角度",0,"ぼかし",0) end
+if HY == 2 then obj.effect("斜めクリッピング","角度",180,"ぼかし",0) end
+if obj.track1 > 0 then obj.effect("グラデーション","強さ",100,"中心X",-ArrowLength+2*obj.track1/100*ArrowLength,"角度",90,"幅",ArrowLength,"color",BC,"color2",GC) end
+if obj.track2 > 0 then obj.effect("凸エッジ","幅",obj.track2,"高さ",1,"角度",-math.deg(ArrowAngle)-45) end
+if FW1 > 0 then obj.effect("縁取り","サイズ",FW1,"ぼかし",15,"color",FC1) end
+if FW2 > 0 then obj.effect("縁取り","サイズ",FW2,"ぼかし",15,"color",FC2) end
+if KW > 0 then obj.effect("シャドー","X",KW*math.cos(-ArrowAngle+math.pi/4),"Y",KW*math.sin(-ArrowAngle+math.pi/4),"拡散",1,"濃さ",70,"color",0x000000) end
+if obj.track0 ~= 0 then obj.effect("色調補正","色相",obj.track0) end
+obj.draw()
+
+
+------------------------------------------------------------
+@マーク
+------------------------------------------------------------
+--dialog:彩度[0-200],SD=100;明るさ[0-200],AK=100;コントラスト[0-200],CT=100;左右反転/chk,RV=0;縁幅[pixel],FW=0;縁色/col,FC=0xffffff;影幅[pixel],KW=0;エッジ幅[pixel],EW=0;振り子角度,FK=15;アンカーポイント,Pos={100,0};
+--track0:色相,0,360,0,1
+--track1:演出,0,6,1,1
+--track2:演出速度,1,50,20,1
+--track3:マーク,0,【マークの上限】,1,1
+
+-- フォルダパスを定義
+CHARA_SOZAI = "【キャラ素材フォルダ】"
+
+-- 元からあるテキストの非表示
+obj.alpha = 0
+
+-- 各変数の計算
+AnchorLength = math.sqrt(Pos[1]^2+Pos[2]^2)
+AnchorAngle = math.atan2(Pos[2],Pos[1])
+KW = KW / math.cos(math.pi/4)
+
+-- アンカーポイントを設置
+obj.setanchor("Pos",1,"star")
+StartX = AnchorLength * obj.getvalue("zoom")/100 * math.cos(AnchorAngle + math.rad(obj.rz))
+StartY = AnchorLength * obj.getvalue("zoom")/100 * math.sin(AnchorAngle + math.rad(obj.rz))
+
+-- マーク番号の取得
+MarkNumber = obj.track3
+
+if MarkNumber > 0 then -- マーク番号が0以上の場合のみ処理
+
+	-- 外部関数：拡張アニメーションを読み込み、実行
+	ObjTime = obj.time
+	CharaObjectFlag = 0
+	require("拡張アニメーション")
+	ExAnimation()
+
+	-- トラックバーから演出速度を取得
+	EnshutsuSokudo = obj.track2*10
+
+	-- マークの読み込み
+	obj.load(CHARA_SOZAI.."小道具\\マーク\\"..string.format("%02d",MarkNumber)..MarkString..".png")
+
+	if obj.track1 > 0 then -- 演出が設定されていれば適用
+
+		if obj.track1 ~= 4 then -- 繰り返し放出以外は、最初と最後にフェード
+
+			InRate = obj.time / 0.3
+			OutRate = (obj.totaltime - obj.time) / 0.3
+
+			if InRate <= 1 then
+				obj.alpha = obj.alpha * InRate*(1+0.4*math.sin(math.pi*InRate))
+			elseif OutRate <= 1 then
+				obj.alpha = obj.alpha * OutRate*(1+0.4*math.sin(math.pi*OutRate))
+			end
+
+		end
+
+		if obj.track1 == 1 then -- 拡大登場
+
+			InRate = obj.time / (AnchorLength/EnshutsuSokudo)
+
+			if InRate <= 1 then
+				obj.ox = StartX * (1-InRate*(1+0.4*math.sin(math.pi*InRate)))
+				obj.oy = StartY * (1-InRate*(1+0.4*math.sin(math.pi*InRate)))
+				obj.zoom = obj.zoom * InRate*(1+0.4*math.sin(math.pi*InRate))
+			end
+
+		elseif obj.track1 == 2 then -- 伸縮登場
+
+			InRate = obj.time / (AnchorLength/EnshutsuSokudo)
+
+			if InRate <= 1 then
+				obj.ox = StartX * (1-InRate*(1+0.5*math.sin(math.pi*InRate)))
+				obj.oy = StartY * (1-InRate*(1+0.5*math.sin(math.pi*InRate)))
+				obj.aspect = -0.5 * math.sin(3*math.pi*InRate)
+				obj.zoom = obj.zoom * InRate*(1+0.5*math.sin(math.pi*InRate)) * (1+math.abs(0.5 * math.sin(3*math.pi*InRate)))
+				obj.alpha = obj.alpha * InRate*(1+0.4*math.sin(math.pi*InRate))
+			elseif OutRate <= 1 then
+				obj.alpha = obj.alpha * OutRate*(1+0.4*math.sin(math.pi*OutRate))
+			end
+
+		elseif obj.track1 == 3 then -- 鼓動
+
+			Rate = (obj.time % (200/EnshutsuSokudo)) / (200/EnshutsuSokudo)
+
+			obj.zoom = obj.zoom * (0.9+0.1*math.sin(2*math.pi*Rate))
+
+		elseif obj.track1 == 4 then -- 繰り返し放出
+
+			Rate = (obj.time%(2*AnchorLength/EnshutsuSokudo)) / (2*AnchorLength/EnshutsuSokudo)
+
+			if obj.totaltime - obj.time > obj.totaltime % (2*AnchorLength/EnshutsuSokudo) then
+
+				if Rate < 0.5 then
+					obj.ox = StartX * (1-(Rate/0.5)*(1+0.4*math.sin(math.pi*(Rate/0.5))))
+					obj.oy = StartY * (1-(Rate/0.5)*(1+0.4*math.sin(math.pi*(Rate/0.5))))
+					obj.zoom = obj.zoom * (Rate/0.5)*(1+0.4*math.sin(math.pi*(Rate/0.5)))
+					obj.alpha = obj.alpha * (Rate/0.5)*(1+0.4*math.sin(math.pi*(Rate/0.5)))
+				elseif Rate > 0.9 then
+					obj.alpha = obj.alpha * (1-Rate)/0.1*(1+0.4*math.sin(math.pi*(1-Rate)/0.1))
+				end
+
+			else
+
+				obj.alpha = 0
+
+			end
+
+		elseif obj.track1 == 5 then -- 振り子
+
+			EnshutsuCycle = (4*FK/180)*math.pi*AnchorLength/EnshutsuSokudo
+			if AnchorLength < 20 then EnshutsuCycle = (4*FK/180)*math.pi*20/EnshutsuSokudo end
+
+			Rate = obj.time / ((4*FK/180)*math.pi*AnchorLength/EnshutsuSokudo)
+
+			obj.ox = StartX * (obj.getvalue("zoom")/100)
+			obj.oy = StartY * (obj.getvalue("zoom")/100)
+			obj.cx = StartX
+			obj.cy = StartY
+
+			obj.rz = (FK/2)*math.sin(2*math.pi*Rate)
+
+		elseif obj.track1 == 6 then -- 起点付き鼓動
+
+			Rate = (obj.time % (200/EnshutsuSokudo)) / (200/EnshutsuSokudo)
+
+			obj.ox = StartX - StartX*math.sin(0.6*math.pi*Rate + 0.2*math.pi)
+			obj.oy = StartY - StartY*math.sin(0.6*math.pi*Rate + 0.2*math.pi)
+
+			obj.zoom = obj.zoom * math.sin(0.6*math.pi*Rate + 0.2*math.pi)
+
+		end
+
+	end
+
+	obj.effect("色調補正","色相",obj.track0,"彩度",SD,"明るさ",AK,"ｺﾝﾄﾗｽﾄ",CT)
+	if RV == 1 then obj.effect("反転","左右反転",1) end
+	if EW > 0 then obj.effect("凸エッジ","幅",EW,"高さ",1,"角度",-obj.rz-45) end
+	if FW > 0 then obj.effect("縁取り","サイズ",FW,"ぼかし",15,"color",FC) end
+	if KW > 0 then obj.effect("シャドー","X",KW*math.cos(-math.rad(obj.rz)+math.pi/4),"Y",KW*math.sin(-math.rad(obj.rz)+math.pi/4),"拡散",1,"濃さ",70,"color",0x000000) end
+
+	obj.effect() -- ユーザーが追加したフィルタ効果を適用
+	obj.draw()
+
+end
+
+
+------------------------------------------------------------
+@アイテム１
+------------------------------------------------------------
+--dialog:左右反転/chk,RV=0;浮遊振幅[pixel],FA=2.0;浮遊周期[秒],FS=1.0;地面影を付ける/chk,DS=1;縁幅[pixel],FW=0;影幅[pixel],KW=0
+--track0:アイテム,0,【アイテムの上限】,1,1
+--track1:色相,0,360,0,1
+--track2:浮遊度,-100,500,0,1
+--track3:跳ねる,0,100,0,1
+
+-- フォルダパスを定数で定義
+CHARA_SOZAI = "【キャラ素材フォルダ】"
+
+-- トラックバーの値を取得
+ItemNumber = obj.track0
+ItemShikisou = obj.track1
+ItemFuyuudo = obj.track2
+HaneHaba = obj.track3
+
+-- ［設定］を取得
+ItemRV = RV
+FuyuuShinpuku = FA
+FuyuuShuuki = FS
+JimenKage = DS
+ItemFuchi = FW
+ItemKage = KW
+
+
+------------------------------------------------------------
+@アイテム２
+------------------------------------------------------------
+--dialog:登場速度,IS=10;退場速度,OS=10;登場時に反転/chk,IR=0;退場時に反転/chk,OR=1;歩き振幅[pixel],AA=4;常に歩き振動/chk,TA=0;跳ね高さ[Pixel],HT=20;ジャンプ高さ[Pixel],JT=60;跳ね速度,HS=10;着地の間[秒],CM=0.3;クッション度[0-20],CD=15;アンカーポイント,Pos={120,-10,120,10}
+--track0:震える,0,20,0,1
+--track1:鼓動,0,20,0,1
+--track2:登場演出,0,6,6,1
+--track3:退場演出,0,6,6,1
+
+-- フォルダパスを定数で定義
+CHARA_SOZAI = "【キャラ素材フォルダ】"
+
+-- トラックバーの値を取得
+Furueru = obj.track0
+Kodou = obj.track1
+ToujouEnshutsu = obj.track2
+TaijouEnshutsu = obj.track3
+
+-- ［設定］を取得
+ToujouRV = IR
+TaijouRV = OR
+ArukiShinpuku = AA
+TsuneniAruki = TA
+HaneTakasa = HT
+JumpTakasa = JT
+HaneSokudo = HS * 30
+ChakuchiMa = CM
+CushionDo = CD/10
+
+-- アイテムの拡大率を取得
+ItemZoom = obj.getvalue("zoom")/100
+
+-- 元からあるテキストの非表示
+obj.alpha = 0
+
+-- アンカーポイントを設置
+obj.setanchor("Pos",2,"star","inout")
+
+ToujouX = 3 * Pos[1] * ItemZoom
+ToujouY = 3 * Pos[2] * ItemZoom
+ToujouLength = math.sqrt(ToujouX^2 + ToujouY^2)
+
+TaijouX = 3 * Pos[3] * ItemZoom
+TaijouY = 3 * Pos[4] * ItemZoom
+TaijouLength = math.sqrt(TaijouX^2 + TaijouY^2)
+
+-- 登場演出の割合[0→1]
+InRate = 1
+if ToujouEnshutsu == 1 then -- フェード
+	ToujouSokudo = 10*IS
+	InRate = obj.time / (100/ToujouSokudo)
+end
+if ToujouEnshutsu == 2 and JumpTakasa > 0 then -- ジャンプ
+	ToujouSokudo = 30*IS
+	InRate = obj.time / (2*JumpTakasa/ToujouSokudo)
+end
+if ToujouEnshutsu == 3 and JumpTakasa > 0 then -- 伸縮ジャンプ
+	ToujouSokudo = 30*IS
+	InRate = obj.time / (2*JumpTakasa/ToujouSokudo)
+end
+if ToujouEnshutsu == 4 then -- 変身
+	ToujouSokudo = 25*IS
+	InRate = obj.time / (100/ToujouSokudo)
+end
+if ToujouEnshutsu == 5 and ToujouLength > 0 then -- 歩いて移動
+	ToujouSokudo = 15*IS
+	InRate = obj.time / (ToujouLength/ToujouSokudo)
+end
+if ToujouEnshutsu == 6 and ToujouLength > 0 then -- 跳ねて移動
+	ToujouSokudo = 20*IS
+	HaneTime = 2*HaneTakasa / ToujouSokudo
+	HaneKaisuu = math.floor(ToujouLength/(2*HaneTakasa))
+	TotalTime = ToujouLength/ToujouSokudo + HaneKaisuu*ChakuchiMa
+	InRate = obj.time / TotalTime
+end
+
+-- 退場演出の割合[1→0]
+OutRate = 1
+if TaijouEnshutsu == 1 then -- フェード
+	TaijouSokudo = 10*OS
+	OutRate = (obj.totaltime-obj.time) / (100/TaijouSokudo)
+end
+if TaijouEnshutsu == 2 and JumpTakasa > 0 then -- ジャンプ
+	TaijouSokudo = 30*OS
+	OutRate = (obj.totaltime-obj.time) / (2*JumpTakasa/TaijouSokudo)
+end
+if TaijouEnshutsu == 3 and JumpTakasa > 0 then -- 伸縮ジャンプ
+	TaijouSokudo = 30*OS
+	OutRate = (obj.totaltime-obj.time) / (2*JumpTakasa/TaijouSokudo)
+end
+if TaijouEnshutsu == 4 then -- 変身
+	TaijouSokudo = 25*OS
+	OutRate = (obj.totaltime-obj.time) / (100/TaijouSokudo)
+end
+if TaijouEnshutsu == 5 and TaijouLength > 0 then -- 歩いて移動
+	TaijouSokudo = 15*OS
+	OutRate = (obj.totaltime-obj.time) / (TaijouLength/TaijouSokudo)
+end
+if TaijouEnshutsu == 6 and TaijouLength > 0 then -- 跳ねて移動
+	TaijouSokudo = 20*OS
+	HaneTime = 2*HaneTakasa / TaijouSokudo
+	HaneKaisuu = math.floor(TaijouLength/(2*HaneTakasa))
+	TotalTime = TaijouLength/TaijouSokudo + HaneKaisuu*ChakuchiMa
+	OutRate = (obj.totaltime-obj.time) / TotalTime
+end
+
+-- 登場・退場の共通変数に代入
+Enshutsu = 0
+EnshutsuRV = 0
+Rate = 1
+if InRate < 1 then
+	Enshutsu = ToujouEnshutsu
+	Sokudo = ToujouSokudo
+	EnshutsuTime = obj.time
+	Rate = InRate
+	AnchorX = ToujouX
+	AnchorY = ToujouY
+	AnchorLength = ToujouLength
+	if ToujouEnshutsu ~= 1 and ToujouEnshutsu ~= 4 then EnshutsuRV = ToujouRV end
+elseif OutRate < 1 then
+	Enshutsu = TaijouEnshutsu
+	Sokudo = TaijouSokudo
+	EnshutsuTime = obj.totaltime - obj.time
+	Rate = OutRate
+	AnchorX = TaijouX
+	AnchorY = TaijouY
+	AnchorLength = TaijouLength
+	if TaijouEnshutsu ~= 1 and TaijouEnshutsu ~= 4 then EnshutsuRV = TaijouRV end
+end
+
+-- 関数：アイテムに登場演出と退場演出の適用
+function ItemToutaijou(ShadowFlag)
+
+	if Rate >= 0 and Rate < 1 then
+
+		if Enshutsu == 1 then -- フェード
+
+			obj.alpha = Rate
+
+		elseif Enshutsu == 2 then -- ジャンプ
+		
+			obj.ox = AnchorX * (1 - Rate*(1-0.2*math.sin(2*math.pi*Rate)))
+			obj.oy = AnchorY * (1 - Rate)
+			ItemFuyuudo = ItemFuyuudo + JumpTakasa * math.sin(math.pi*Rate*(1-0.2*math.sin(2*math.pi*Rate)))
+
+		elseif Enshutsu == 3 then -- 伸縮ジャンプ
+
+			obj.ox = AnchorX * (1 - Rate*(1-0.2*math.sin(2*math.pi*Rate)))
+			obj.oy = AnchorY * (1 - Rate)
+			ItemFuyuudo = ItemFuyuudo + JumpTakasa * math.sin(math.pi*Rate*(1-0.2*math.sin(2*math.pi*Rate)))
+			obj.alpha = Rate*(1+0.3*math.sin(math.pi*Rate))
+
+			-- ▽ さつきさんの伸縮登場スクリプトを拝借 ▽
+			xa = 40
+			xb = 150
+			ya = 150
+			yb = 80
+			xscale = 100
+			yscale = 100
+
+			if InRate < 1 then
+
+				t = (2*JumpTakasa/ToujouSokudo)/3
+
+				if(obj.time<t) then
+					ta=(t-obj.time)/t
+					xscale=0+(xa-0)*(1-ta)
+					yscale=0+(ya-0)*(1-ta)
+			  	elseif(obj.time<2*t) then
+					tb=(t-(obj.time-t))/t
+					xscale=xa+(xb-xa)*(1-tb)
+					yscale=ya+(yb-ya)*(1-tb)
+			  	elseif(obj.time<3*t) then
+					tc=(t-(obj.time-2*t))/t
+					xscale=xb+(100-xb)*(1-tc)
+					yscale=yb+(100-yb)*(1-tc)
+				end
+
+			elseif OutRate < 1 then
+
+				t = (2*JumpTakasa/TaijouSokudo)/3
+
+				if (obj.time>obj.totaltime-3*t) then
+					if(obj.time<obj.totaltime-2*t) then
+						tc=(t-(obj.time-obj.totaltime+3*t))/t
+						xscale=100+(xb-100)*(1-tc)
+						yscale=100+(yb-100)*(1-tc)
+					elseif(obj.time<obj.totaltime-t) then
+						tb=(t-(obj.time-obj.totaltime+2*t))/t
+						xscale=xb+(xa-xb)*(1-tb)
+						yscale=yb+(ya-yb)*(1-tb)
+					else
+						ta=(t-(obj.time-obj.totaltime+t))/t
+						xscale=xa+(0-xa)*(1-ta)
+						yscale=ya+(0-ya)*(1-ta)
+					end
+				end
+
+			end
+
+			obj.zoom=math.max(xscale,yscale)/100
+			if(xscale>yscale) then
+				obj.aspect=yscale/xscale-1
+			else
+				obj.aspect=1-xscale/yscale
+			end
+			-- △ さつきさんの伸縮登場スクリプトを拝借 △
+
+		elseif Enshutsu == 4 then -- 変身
+
+			ItemFuyuudo = ItemFuyuudo + 50 * math.sin(math.pi*Rate*(1-0.2*math.sin(2*math.pi*Rate)))
+			obj.zoom = 0.5 + 0.5*Rate*(1+0.5*math.sin(math.pi*Rate))
+			obj.alpha = Rate
+
+			if ShadowFlag == 0 then
+				obj.effect("放射ブラー","範囲",100 * (1 - Rate*(1+0.2*math.sin(math.pi*Rate))))
+				obj.effect("色調補正","明るさ",100 + 150 * (1 - Rate*(1+0.3*math.sin(math.pi*Rate))))
+			end
+
+		elseif Enshutsu == 5 then -- 歩いて移動
+
+			obj.ox = AnchorX * (1 - Rate)
+			obj.oy = AnchorY * (1 - Rate)
+			obj.zoom = obj.zoom + AnchorY * (1 - Rate) / 400
+
+			-- 歩き振動を反映
+			if EnshutsuTime < AnchorLength/Sokudo + (AnchorLength/Sokudo)%0.2 then
+				ItemFuyuudo = ItemFuyuudo + ArukiShinpuku*math.abs(math.sin(2*math.pi*EnshutsuTime/0.4))
+			end
+
+		elseif Enshutsu == 6 then -- 跳ねて移動
+
+			HaneTime = 2*HaneTakasa / Sokudo
+			HaneKaisuu = math.floor(AnchorLength/(2*HaneTakasa))
+			TotalTime = AnchorLength/Sokudo + HaneKaisuu*ChakuchiMa
+			AmariTime = TotalTime % (HaneTime+ChakuchiMa)
+
+			if EnshutsuTime >= AmariTime then
+
+				if (EnshutsuTime-AmariTime) % (HaneTime+ChakuchiMa) <= HaneTime then -- 跳ね
+
+					HaneCount = math.floor((EnshutsuTime-AmariTime)/(HaneTime+ChakuchiMa))
+					obj.ox = AnchorX * (1 - (EnshutsuTime - ChakuchiMa*HaneCount)/(AnchorLength/Sokudo))
+					obj.oy = AnchorY * (1 - (EnshutsuTime - ChakuchiMa*HaneCount)/(AnchorLength/Sokudo))
+					HaneRate = ((EnshutsuTime-AmariTime) % (HaneTime+ChakuchiMa)) / HaneTime
+					ItemFuyuudo = ItemFuyuudo + HaneTakasa * math.sin(math.pi*HaneRate)
+
+				else -- 着地
+
+					HaneCount = math.floor((EnshutsuTime-AmariTime)/(HaneTime+ChakuchiMa)) + 1
+					obj.ox = AnchorX * (1 - (2*HaneTakasa*HaneCount + AmariTime*Sokudo)/AnchorLength)
+					obj.oy = AnchorY * (1 - (2*HaneTakasa*HaneCount + AmariTime*Sokudo)/AnchorLength)
+
+					if CushionDo > 0 then
+						ChakuchiRate = ((EnshutsuTime-AmariTime) % (HaneTime+ChakuchiMa) - HaneTime) / ChakuchiMa
+						obj.aspect = -0.1*CushionDo*math.sin(math.pi*ChakuchiRate)
+						obj.zoom = 1 + 0.1*CushionDo*math.sin(math.pi*ChakuchiRate)
+						--ItemFuyuudo = ItemFuyuudo - obj.h/6 * obj.aspect^2 * obj.zoom
+					end
+
+				end
+
+			else
+
+				obj.ox = AnchorX * (1 - Rate)
+				obj.oy = AnchorY * (1 - Rate)
+				ItemFuyuudo = ItemFuyuudo + ArukiShinpuku*math.abs(math.sin(2*math.pi*EnshutsuTime/0.6)) -- 歩き振動
+
+			end
+
+		end
+
+	end
+
+	-- 常時演出を適用
+	if TsuneniAruki == 1 then ItemFuyuudo = ItemFuyuudo + ArukiShinpuku*math.abs(math.sin(2*math.pi*obj.time/0.6)) end
+	if Furueru > 0 then obj.effect("振動","X",Furueru,"Y",Furueru) end
+	if Kodou > 0 then obj.zoom = obj.zoom * (1+(Kodou/200)*math.sin(2*math.pi*(obj.time/0.5))) end
+
+end
+
+-- 関数：跳ねる
+function Haneru()
+
+	HaneTime = 2*HaneHaba/HaneSokudo
+	if obj.totaltime - obj.time > obj.totaltime % (HaneTime+ChakuchiMa) then -- オブジェクトの残り時間が、跳ねと着地時間以上である限り、跳ねる
+		if obj.time % (HaneTime+ChakuchiMa) < HaneTime then
+			HaneRate = (obj.time % (HaneTime+ChakuchiMa)) / HaneTime
+			ItemFuyuudo = ItemFuyuudo + HaneHaba * math.sin(math.pi*HaneRate)
+		else
+			if CushionDo > 0 and ChakuchiMa > 0 then
+				ChakuchiRate = (obj.time % (HaneTime+ChakuchiMa) - HaneTime) / ChakuchiMa
+				obj.aspect = -0.1*CushionDo*math.sin(math.pi*ChakuchiRate)
+				obj.zoom = obj.zoom*(1 + 0.1*CushionDo*math.sin(math.pi*ChakuchiRate))
+				ItemFuyuudo = ItemFuyuudo - obj.h/6 * obj.aspect^2 * obj.zoom
+			end
+		end
+	end
+
+end
+
+-- 描画先を仮想バッファへ
+obj.setoption("drawtarget","tempbuffer",1000,1000)
+
+-- アイテムの描画
+obj.load(CHARA_SOZAI.."小道具\\アイテム\\"..string.format("%02d",ItemNumber)..".png")
+ItemH = obj.h
+if math.abs(ItemRV-EnshutsuRV) == 1 then obj.effect("反転","左右反転",1) end
+obj.draw((math.ceil(obj.w/ItemZoom)%2)/2,(math.ceil(obj.h/ItemZoom)%2)/2-100)
+
+-- 地面影を仮想バッファに描画
+if JimenKage == 1 then
+	obj.load("tempbuffer",100,0,800,800)
+	obj.drawpoly(-300,300,0, 500,300,0, 300,500,0, -500,500,0,  0,0, 800,0, 800,800, 0,800) -- 傾斜変換して描画
+end
+
+-- 描画先をフレームバッファに
+obj.setoption("drawtarget","framebuffer")
+
+-- 地面影の描画
+if JimenKage == 1 then
+
+	obj.load("tempbuffer",0,800,1000,200)
+
+	ItemToutaijou(1) -- 影に登場演出と退場演出を適用
+	if HaneHaba > 0 then Haneru() end -- 跳ねるを適用
+
+	-- 浮遊度から、地面影のぼかし、ズーム、透明度を設定
+	ShadowBokashi = 5
+	ShadowZoom = 1
+	ShadowAlpha = 0.4
+	if ItemFuyuudo > 9 then
+		ShadowBokashi = ShadowBokashi + 0.18*(ItemFuyuudo + FuyuuShinpuku * math.sin(2*math.pi * obj.time))
+		ShadowZoom = ShadowZoom - 0.0015*(ItemFuyuudo + FuyuuShinpuku * math.sin(2*math.pi * obj.time))
+		ShadowAlpha = ShadowAlpha - 0.0015*(ItemFuyuudo + FuyuuShinpuku * math.sin(2*math.pi * obj.time))
+	else
+		ShadowBokashi = ShadowBokashi + 0.18*ItemFuyuudo
+		ShadowZoom = ShadowZoom - 0.0015*ItemFuyuudo
+		ShadowAlpha = ShadowAlpha - 0.0015*ItemFuyuudo
+	end
+
+	-- 地面影に変換
+	obj.effect("グラデーション","color",0x000000,"color2",0x000000) 
+	obj.effect("ぼかし","範囲",ShadowBokashi)
+	obj.ox = obj.ox + ItemZoom*ItemH/8 + 0.35*ItemZoom*ItemFuyuudo
+	obj.oy = obj.oy + ItemZoom*ItemH*3/8 - 0.35*ItemZoom*ItemFuyuudo
+	obj.alpha = obj.alpha * ShadowAlpha
+	obj.zoom = obj.zoom * ShadowZoom
+
+	-- 地面影を描画
+	obj.effect() -- ユーザーが追加したフィルタ効果を適用
+	obj.draw()
+
+end
+
+-- アイテム本体の描画
+obj.load("tempbuffer",100,0,800,800)
+
+ItemToutaijou(0) -- アイテムに登場演出と退場演出を適用
+if HaneHaba > 0 then Haneru() end -- 跳ねるを適用
+
+if ItemFuchi > 0 then obj.effect("縁取り","サイズ",ItemFuchi,"ぼかし",15,"color",0xffffff) end
+if ItemKage > 0 then obj.effect("シャドー","X",ItemKage*math.cos(-math.rad(obj.rz)+math.pi/4),"Y",ItemKage*math.sin(-math.rad(obj.rz)+math.pi/4),"拡散",1,"濃さ",70,"color",0x000000) end
+obj.oy = obj.oy - ItemFuyuudo
+if ItemFuyuudo > 9 then obj.oy = obj.oy - FuyuuShinpuku * math.sin(2*math.pi*obj.time) end
+if ItemShikisou > 0 then obj.effect("色調補正","色相",ItemShikisou,"彩度",100,"明るさ",100,"ｺﾝﾄﾗｽﾄ",100) end
+
+obj.effect() -- ユーザーが追加したフィルタ効果を適用
+obj.draw()
+
+
+------------------------------------------------------------
+@数字ダイス
+------------------------------------------------------------
+--dialog:面数[3-100],MS=100;フォント,FT="Times";フォントサイズ,FS=100;縁幅[pixel],FW=2;縁色/col,FI=0x333333;カウントダウン/chk,CD=0;確定後に彩色/chk,KS=1;妖怪のしわざ/chk,YS=0;初期速度,SV=200;最終速度,GV=2;確定前の間[秒],KM=2.0;変動色/col,HC=0xcccccc;成功色/col,SC=0x88eeff;失敗色/col,FC=0xffaaaa;確定色/col,KC=nil
+--track0:出目,1,100,50,1
+--track1:目標値,1,100,50,1
+--track2:高速時間,0,5,1.5
+--track3:低速時間,0,5,1.5
+
+-- 元からあるテキストの非表示
+obj.alpha = 0
+
+-- カウント方向を決定
+CountHoukou = 1-2*CD
+
+-- 出目の初期値を決定
+ShokiDeme = obj.track0 - CountHoukou*(0.5*(SV+GV)*obj.track2 + GV*obj.track3) - CountHoukou*YS
+
+-- 表示出目の決定
+if obj.time < obj.track2 then -- 高速変動
+	Deme = math.floor(ShokiDeme + CountHoukou*0.5*((GV*obj.time + SV*(obj.track2-obj.time))/obj.track2 + SV)*obj.time)
+elseif obj.time < obj.track2 + obj.track3 then -- 低速変動
+	Deme = math.floor(ShokiDeme + CountHoukou*(0.5*(SV+GV)*obj.track2 + GV*(obj.time-obj.track2)))
+elseif obj.time < obj.track2 + obj.track3 + KM then -- 彩色直前
+	Deme = obj.track0 - CountHoukou*YS
+else -- 数値確定
+	Deme = obj.track0
+end
+Deme = Deme % MS
+
+-- 面数が10と100以外で出目が0の場合は、出目は0ではなく面数
+if MS ~= 10 and MS ~= 100 and Deme == 0 then Deme = MS end
+
+-- 数字カラーの決定
+DemeColor = HC
+if KS == 0 or obj.time >= obj.track2 + obj.track3 + KM then
+	if MS == 10 and Deme == 0 then
+		DemeColor = FC
+	elseif MS == 100 and Deme == 0 then
+		DemeColor = FC
+	elseif Deme <= obj.track1 then
+		DemeColor = SC
+	else
+		DemeColor = FC
+	end
+end
+if KC ~= nil and obj.time >= obj.track2 + obj.track3 + KM then DemeColor = KC end
+
+-- 表示フォーマットの決定
+HyoujiFormat = "%01d"
+if MS > 10 then HyoujiFormat = "%02d" end
+
+-- 出目を描画
+obj.setfont(FT,FS,0,DemeColor)
+obj.load("text",string.format(HyoujiFormat,Deme))
+if FW > 0 then obj.effect("縁取り","サイズ",FW,"ぼかし",15,"color",FI) end
+obj.draw(-(obj.w%2)/2,-(obj.h%2)/2)
